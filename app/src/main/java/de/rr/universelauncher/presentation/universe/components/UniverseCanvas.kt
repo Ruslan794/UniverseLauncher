@@ -17,30 +17,30 @@ import kotlinx.coroutines.delay
 @Composable
 fun UniverseCanvas(
     orbitalSystem: OrbitalSystem,
-    onPlanetTapped: (OrbitalBody) -> Unit,
+    onPlanetTapped: (OrbitalBody, Offset, Float) -> Unit,
     onStarTapped: () -> Unit,
     onCanvasSizeChanged: (androidx.compose.ui.geometry.Size) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val iconCache = rememberIconCache(orbitalSystem)
-    
+
     LaunchedEffect(orbitalSystem) {
         iconCache.preloadIcons(orbitalSystem)
     }
-    
+
     var currentAnimationTime by remember { mutableStateOf(0f) }
     var center by remember { mutableStateOf(Offset.Zero) }
     var lastCanvasSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
-    
+
     LaunchedEffect(Unit) {
         while (true) {
             delay(16)
             currentAnimationTime += 0.016f
         }
     }
-    
+
     val orbitPathCache = rememberOrbitPathCache(orbitalSystem, center)
-    
+
     Canvas(
         modifier = modifier
             .fillMaxHeight()
@@ -51,14 +51,12 @@ fun UniverseCanvas(
                         val centerY = size.height / 2f
                         val center = Offset(centerX, centerY)
 
-                        // Check if tap is on star (center)
                         val distanceFromCenter = (offset - center).getDistance()
-                        if (distanceFromCenter <= orbitalSystem.star.radius * 2) {
+                        if (distanceFromCenter <= orbitalSystem.star.radius * 1.5f) {
                             onStarTapped()
                             return@detectTapGestures
                         }
 
-                        // Check if tap is on any planet
                         orbitalSystem.orbitalBodies.forEach { orbitalBody ->
                             val position = OrbitalPhysics.calculateOrbitalBodyPosition(
                                 orbitalBody = orbitalBody,
@@ -70,8 +68,11 @@ fun UniverseCanvas(
                             val planetCenter = Offset(screenX, screenY)
 
                             val distance = (offset - planetCenter).getDistance()
-                            if (distance <= orbitalBody.orbitalConfig.size * 2) {
-                                onPlanetTapped(orbitalBody)
+                            val planetRadius = orbitalBody.orbitalConfig.size
+
+                            if (distance <= planetRadius * 1.2f) {
+                                onPlanetTapped(orbitalBody, planetCenter, planetRadius)
+                                return@detectTapGestures
                             }
                         }
                     }
@@ -81,18 +82,17 @@ fun UniverseCanvas(
         val centerX = size.width / 2f
         val centerY = size.height / 2f
         val currentCenter = Offset(centerX, centerY)
-        
+
         if (center != currentCenter) {
             center = currentCenter
         }
-        
-        // Only notify about canvas size changes when size actually changes
+
         val currentCanvasSize = androidx.compose.ui.geometry.Size(size.width, size.height)
         if (lastCanvasSize != currentCanvasSize) {
             lastCanvasSize = currentCanvasSize
             onCanvasSizeChanged(currentCanvasSize)
         }
-        
+
         UniverseRenderer.drawUniverse(
             drawScope = this,
             orbitalSystem = orbitalSystem,

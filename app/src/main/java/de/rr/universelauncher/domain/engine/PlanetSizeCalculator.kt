@@ -2,23 +2,23 @@ package de.rr.universelauncher.domain.engine
 
 import de.rr.universelauncher.domain.model.AppInfo
 import kotlin.math.ln
-import kotlin.math.sqrt
 
 object PlanetSizeCalculator {
 
-    private const val MIN_PLANET_SIZE = 20f
-    private const val MAX_PLANET_SIZE = 60f
+    private const val MIN_PLANET_RADIUS = 28f
+    private const val MAX_PLANET_RADIUS = 52f
 
     fun calculatePlanetSizes(apps: List<AppInfo>): Map<String, Float> {
         if (apps.isEmpty()) return emptyMap()
 
         val launchCounts = apps.map { it.launchCount }
         val maxLaunchCount = launchCounts.maxOrNull() ?: 0
-        val minLaunchCount = launchCounts.minOrNull() ?: 0
 
         if (maxLaunchCount == 0) {
-            return apps.associate { it.packageName to MIN_PLANET_SIZE }
+            return apps.associate { it.packageName to MIN_PLANET_RADIUS }
         }
+
+        val minLaunchCount = launchCounts.minOrNull() ?: 0
 
         return apps.associate { app ->
             val normalizedSize = normalizeSize(
@@ -36,28 +36,22 @@ object PlanetSizeCalculator {
         maxLaunchCount: Int
     ): Float {
         if (maxLaunchCount == minLaunchCount) {
-            return (MIN_PLANET_SIZE + MAX_PLANET_SIZE) / 2f
+            return (MIN_PLANET_RADIUS + MAX_PLANET_RADIUS) / 2f
         }
 
-        val normalizedValue = when {
-            launchCount == 0 -> 0f
-            else -> {
-                val logValue = ln((launchCount + 1).toFloat())
-                val logMin = ln((minLaunchCount + 1).toFloat())
-                val logMax = ln((maxLaunchCount + 1).toFloat())
+        val normalizedValue = if (launchCount == 0) {
+            0f
+        } else {
+            val logValue = ln((launchCount + 1).toFloat())
+            val logMin = ln((minLaunchCount + 1).toFloat())
+            val logMax = ln((maxLaunchCount + 1).toFloat())
 
-                if (logMax == logMin) {
-                    0.5f
-                } else {
-                    (logValue - logMin) / (logMax - logMin)
-                }
-            }
+            ((logValue - logMin) / (logMax - logMin)).coerceIn(0f, 1f)
         }
 
-        val size = MIN_PLANET_SIZE + (normalizedValue * (MAX_PLANET_SIZE - MIN_PLANET_SIZE))
-        return size.coerceIn(MIN_PLANET_SIZE, MAX_PLANET_SIZE)
+        return MIN_PLANET_RADIUS + (normalizedValue * (MAX_PLANET_RADIUS - MIN_PLANET_RADIUS))
     }
 
-    fun getMinPlanetSize(): Float = MIN_PLANET_SIZE
-    fun getMaxPlanetSize(): Float = MAX_PLANET_SIZE
+    fun getMinPlanetSize(): Float = MIN_PLANET_RADIUS
+    fun getMaxPlanetSize(): Float = MAX_PLANET_RADIUS
 }

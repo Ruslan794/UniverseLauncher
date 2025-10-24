@@ -52,7 +52,9 @@ fun UniverseScreen(
             else -> {
                 UniverseCanvas(
                     orbitalSystem = uiState.orbitalSystem,
-                    onPlanetTapped = viewModel::onPlanetTapped,
+                    onPlanetTapped = { orbitalBody, position, size -> 
+                        viewModel.onPlanetTapped(orbitalBody, position, size)
+                    },
                     onStarTapped = viewModel::onStarTapped,
                     onCanvasSizeChanged = viewModel::updateCanvasSize,
                     modifier = Modifier.fillMaxSize()

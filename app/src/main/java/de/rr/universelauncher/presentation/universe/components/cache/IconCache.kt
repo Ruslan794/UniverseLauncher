@@ -13,47 +13,43 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun rememberIconCache(
-    orbitalSystem: OrbitalSystem?,
-    iconSize: Int = 64
+    orbitalSystem: OrbitalSystem
 ): IconCache {
-    return remember(orbitalSystem) {
-        IconCache(iconSize)
-    }
+    return remember { IconCache() }
 }
 
-class IconCache(
-    private val defaultIconSize: Int = 64
-) {
+class IconCache {
     private val cache = mutableMapOf<String, ImageBitmap>()
-    
-    fun getIconBitmapSync(orbitalBody: OrbitalBody, size: Int = defaultIconSize): ImageBitmap? {
-        val cacheKey = "${orbitalBody.appInfo.packageName}_${size}"
+
+    fun getIconBitmapSync(orbitalBody: OrbitalBody): ImageBitmap? {
+        val planetDiameter = (orbitalBody.orbitalConfig.size * 2).toInt()
+        val cacheKey = "${orbitalBody.appInfo.packageName}_${planetDiameter}"
         return cache[cacheKey]
     }
-    
-    suspend fun getIconBitmap(orbitalBody: OrbitalBody, size: Int = defaultIconSize): ImageBitmap? {
-        val cacheKey = "${orbitalBody.appInfo.packageName}_${size}"
-        
+
+    suspend fun getIconBitmap(orbitalBody: OrbitalBody): ImageBitmap? {
+        val planetDiameter = (orbitalBody.orbitalConfig.size * 2).toInt()
+        val cacheKey = "${orbitalBody.appInfo.packageName}_${planetDiameter}"
+
         return cache[cacheKey] ?: run {
-            val bitmap = convertDrawableToBitmap(orbitalBody.appInfo.icon, size)
+            val bitmap = convertDrawableToBitmap(orbitalBody.appInfo.icon, planetDiameter)
             if (bitmap != null) {
                 cache[cacheKey] = bitmap
             }
             bitmap
         }
     }
-    
+
     suspend fun preloadIcons(orbitalSystem: OrbitalSystem) {
         orbitalSystem.orbitalBodies.forEach { orbitalBody ->
-            val iconSize = (orbitalBody.orbitalConfig.size * 2).toInt()
-            getIconBitmap(orbitalBody, iconSize)
+            getIconBitmap(orbitalBody)
         }
     }
-    
+
     fun clearCache() {
         cache.clear()
     }
-    
+
     private suspend fun convertDrawableToBitmap(
         drawable: Drawable,
         size: Int

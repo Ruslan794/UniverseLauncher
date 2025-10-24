@@ -5,14 +5,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import de.rr.universelauncher.domain.engine.OrbitalPhysics
-import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
-import de.rr.universelauncher.domain.model.Star
 import de.rr.universelauncher.presentation.universe.components.cache.IconCache
 import de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache
 
 object UniverseRenderer {
-    
+
     fun drawUniverse(
         drawScope: DrawScope,
         orbitalSystem: OrbitalSystem,
@@ -25,7 +23,7 @@ object UniverseRenderer {
         drawStar(drawScope, orbitalSystem.star, center)
         drawPlanets(drawScope, orbitalSystem, animationTime, center, iconCache)
     }
-    
+
     private fun drawOrbitalPaths(
         drawScope: DrawScope,
         orbitPathCache: OrbitPathCache
@@ -33,15 +31,15 @@ object UniverseRenderer {
         orbitPathCache.getAllPaths().forEach { path ->
             drawScope.drawPath(
                 path = path,
-                color = Color.White.copy(alpha = 0.1f),
-                style = Stroke(width = 1f)
+                color = Color.White.copy(alpha = 0.15f),
+                style = Stroke(width = 2f)
             )
         }
     }
-    
+
     private fun drawStar(
         drawScope: DrawScope,
-        star: Star,
+        star: de.rr.universelauncher.domain.model.Star,
         center: Offset
     ) {
         drawScope.drawCircle(
@@ -49,14 +47,14 @@ object UniverseRenderer {
             radius = star.radius * 1.5f,
             center = center
         )
-        
+
         drawScope.drawCircle(
             color = star.color,
             radius = star.radius,
             center = center
         )
     }
-    
+
     private fun drawPlanets(
         drawScope: DrawScope,
         orbitalSystem: OrbitalSystem,
@@ -69,10 +67,10 @@ object UniverseRenderer {
                 orbitalBody = orbitalBody,
                 timeSeconds = animationTime
             )
-            
+
             val screenX = center.x + position.first
             val screenY = center.y + position.second
-            
+
             drawOrbitalBody(
                 drawScope = drawScope,
                 orbitalBody = orbitalBody,
@@ -81,39 +79,37 @@ object UniverseRenderer {
             )
         }
     }
-    
+
     private fun drawOrbitalBody(
         drawScope: DrawScope,
-        orbitalBody: OrbitalBody,
+        orbitalBody: de.rr.universelauncher.domain.model.OrbitalBody,
         position: Offset,
         iconCache: IconCache
     ) {
-        val config = orbitalBody.orbitalConfig
-        val iconSize = (config.size * 2).toInt()
-        
-        val cachedBitmap = iconCache.getIconBitmapSync(orbitalBody, iconSize)
-        
+        val planetRadius = orbitalBody.orbitalConfig.size
+
+        val cachedBitmap = iconCache.getIconBitmapSync(orbitalBody)
+
         if (cachedBitmap != null) {
             drawScope.drawImage(
                 image = cachedBitmap,
                 topLeft = Offset(
-                    position.x - config.size,
-                    position.y - config.size
+                    position.x - planetRadius,
+                    position.y - planetRadius
                 )
             )
         } else {
             drawScope.drawCircle(
-                color = config.color.copy(alpha = 0.2f),
-                radius = config.size * 1.5f,
+                color = orbitalBody.orbitalConfig.color.copy(alpha = 0.2f),
+                radius = planetRadius * 1.3f,
                 center = position
             )
-            
+
             drawScope.drawCircle(
-                color = config.color,
-                radius = config.size,
+                color = orbitalBody.orbitalConfig.color,
+                radius = planetRadius,
                 center = position
             )
         }
     }
 }
-

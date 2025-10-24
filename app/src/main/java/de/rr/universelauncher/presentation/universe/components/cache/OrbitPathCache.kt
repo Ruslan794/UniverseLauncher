@@ -9,13 +9,16 @@ import de.rr.universelauncher.domain.model.OrbitalSystem
 
 @Composable
 fun rememberOrbitPathCache(
-    orbitalSystem: OrbitalSystem?,
+    orbitalSystem: OrbitalSystem,
     center: Offset
 ): OrbitPathCache {
-    return remember(orbitalSystem, center) {
-        orbitalSystem?.let { system ->
-            OrbitPathCache.create(system, center)
-        } ?: OrbitPathCache.empty()
+    return remember(
+        orbitalSystem.orbitalBodies.map { 
+            it.orbitalConfig.distance to it.orbitalConfig.size to it.appInfo.packageName 
+        }, 
+        center
+    ) {
+        OrbitPathCache.create(orbitalSystem, center)
     }
 }
 
@@ -25,34 +28,36 @@ class OrbitPathCache private constructor(
     companion object {
         fun create(orbitalSystem: OrbitalSystem, center: Offset): OrbitPathCache {
             val paths = mutableMapOf<String, Path>()
-            
+
             orbitalSystem.orbitalBodies.forEach { orbitalBody ->
-                val pathPoints = OrbitalPhysics.calculateOrbitPathPoints(orbitalBody)
-                
-                if (pathPoints.isNotEmpty()) {
-                    val path = Path()
-                    val firstPoint = pathPoints[0]
-                    path.moveTo(center.x + firstPoint.first, center.y + firstPoint.second)
-                    
-                    for (i in 1 until pathPoints.size) {
-                        val point = pathPoints[i]
-                        path.lineTo(center.x + point.first, center.y + point.second)
+                if (orbitalBody.orbitalConfig.distance > 0) {
+                    val pathPoints = OrbitalPhysics.calculateOrbitPathPoints(orbitalBody)
+
+                    if (pathPoints.isNotEmpty()) {
+                        val path = Path()
+                        val firstPoint = pathPoints[0]
+                        path.moveTo(center.x + firstPoint.first, center.y + firstPoint.second)
+
+                        for (i in 1 until pathPoints.size) {
+                            val point = pathPoints[i]
+                            path.lineTo(center.x + point.first, center.y + point.second)
+                        }
+
+                        path.close()
+                        paths[orbitalBody.appInfo.packageName] = path
                     }
-                    
-                    path.close()
-                    paths[orbitalBody.appInfo.packageName] = path
                 }
             }
-            
+
             return OrbitPathCache(paths)
         }
-        
+
         fun empty(): OrbitPathCache = OrbitPathCache(emptyMap())
     }
-    
+
     fun getPath(orbitalBody: OrbitalBody): Path? {
         return paths[orbitalBody.appInfo.packageName]
     }
-    
+
     fun getAllPaths(): Collection<Path> = paths.values
 }

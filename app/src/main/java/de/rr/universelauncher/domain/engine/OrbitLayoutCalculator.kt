@@ -7,16 +7,13 @@ import kotlin.math.min
 
 data class OrbitLayout(
     val orbitDistance: Float,
-    val planetSize: Float,
-    val maxRadiusX: Float,
-    val maxRadiusY: Float
+    val planetSize: Float
 )
 
 object OrbitLayoutCalculator {
 
-    private const val EDGE_PADDING = 80f
-    private const val ORBIT_PADDING = 30f
-    private const val PLANET_SAFETY_MARGIN = 15f
+    private const val EDGE_PADDING = 60f
+    private const val MIN_ORBIT_SPACING = 40f
 
     fun calculateOrbitLayouts(
         star: Star,
@@ -26,122 +23,91 @@ object OrbitLayoutCalculator {
         if (orbitalBodies.isEmpty()) return emptyList()
 
         val canvasRadius = min(canvasSize.width, canvasSize.height) / 2f
-        val availableRadius = canvasRadius - EDGE_PADDING
+        val maxUsableRadius = canvasRadius - EDGE_PADDING
 
-        val startRadius = star.radius + star.deadZone + ORBIT_PADDING
+        // Calculate minimum first orbit considering the first planet's radius
+        val firstPlanetRadius = orbitalBodies.firstOrNull()?.orbitalConfig?.size ?: 0f
+        val minFirstOrbit = star.radius + star.deadZone + firstPlanetRadius + MIN_ORBIT_SPACING
 
-        if (availableRadius <= startRadius) {
-            return orbitalBodies.map { body ->
-                OrbitLayout(
-                    orbitDistance = startRadius,
-                    planetSize = body.orbitalConfig.size,
-                    maxRadiusX = startRadius * body.orbitalConfig.ellipseRatio,
-                    maxRadiusY = startRadius
-                )
-            }
+        if (maxUsableRadius <= minFirstOrbit) {
+            return orbitalBodies.map { OrbitLayout(minFirstOrbit, it.orbitalConfig.size) }
         }
 
-        val layouts = mutableListOf<OrbitLayout>()
-        var currentRadius = startRadius
+        val ellipseRatio = orbitalBodies.firstOrNull()?.orbitalConfig?.ellipseRatio ?: 1.3f
 
-        orbitalBodies.forEach { body ->
-            val ellipseRatio = body.orbitalConfig.ellipseRatio
-            val planetSize = body.orbitalConfig.size
+        val totalPlanetDiameters = orbitalBodies.sumOf { (it.orbitalConfig.size * 2).toDouble() }.toFloat()
+        val minRequiredSpacing = (orbitalBodies.size - 1) * MIN_ORBIT_SPACING
+        val totalRequiredSpace = totalPlanetDiameters + minRequiredSpacing
 
-            val requiredRadiusForPlanet = planetSize + PLANET_SAFETY_MARGIN
+        val availableSpace = (maxUsableRadius / ellipseRatio) - minFirstOrbit
 
-            if (currentRadius + requiredRadiusForPlanet > availableRadius) {
-                currentRadius = availableRadius - requiredRadiusForPlanet
-                if (currentRadius < startRadius) {
-                    currentRadius = startRadius
-                }
-            }
-
-            val maxRadiusX = currentRadius * ellipseRatio
-            val maxRadiusY = currentRadius
-
-            val layout = OrbitLayout(
-                orbitDistance = currentRadius,
-                planetSize = planetSize,
-                maxRadiusX = maxRadiusX,
-                maxRadiusY = maxRadiusY
-            )
-            layouts.add(layout)
-
-            val nextMinRadius = currentRadius + requiredRadiusForPlanet + ORBIT_PADDING
-            currentRadius = nextMinRadius
+        return if (totalRequiredSpace > availableSpace) {
+            compressOrbits(orbitalBodies, minFirstOrbit, maxUsableRadius, ellipseRatio)
+        } else {
+            distributeOrbitsEvenly(orbitalBodies, minFirstOrbit, availableSpace, ellipseRatio)
         }
-
-        return optimizeSpacing(layouts, availableRadius, startRadius)
     }
 
-    private fun optimizeSpacing(
-        layouts: List<OrbitLayout>,
-        availableRadius: Float,
-        startRadius: Float
+    private fun distributeOrbitsEvenly(
+        orbitalBodies: List<OrbitalBody>,
+        startDistance: Float,
+        availableSpace: Float,
+        ellipseRatio: Float
     ): List<OrbitLayout> {
-        if (layouts.isEmpty()) return layouts
-
-        val lastLayout = layouts.last()
-        val lastRequiredRadius = lastLayout.orbitDistance + lastLayout.planetSize + PLANET_SAFETY_MARGIN
-
-        if (lastRequiredRadius > availableRadius) {
-            return compressLayouts(layouts, availableRadius, startRadius)
+        val layouts = mutableListOf<OrbitLayout>()
+        
+        if (orbitalBodies.isEmpty()) return layouts
+        
+        // Simple even distribution
+        val spacing = if (orbitalBodies.size > 1) {
+            availableSpace / orbitalBodies.size
+        } else {
+            availableSpace / 2
         }
+        
+        var currentDistance = startDistance
 
-        val totalUsedSpace = lastRequiredRadius - startRadius
-        val totalAvailableSpace = availableRadius - startRadius
+        orbitalBodies.forEach { body ->
+            val planetRadius = body.orbitalConfig.size
+            
+            layouts.add(OrbitLayout(
+                orbitDistance = currentDistance,
+                planetSize = planetRadius
+            ))
 
-        if (totalUsedSpace < totalAvailableSpace * 0.6f) {
-            return expandLayouts(layouts, availableRadius, startRadius)
+            currentDistance += spacing
         }
 
         return layouts
     }
 
-    private fun expandLayouts(
-        layouts: List<OrbitLayout>,
-        availableRadius: Float,
-        startRadius: Float
+    private fun compressOrbits(
+        orbitalBodies: List<OrbitalBody>,
+        startDistance: Float,
+        maxUsableRadius: Float,
+        ellipseRatio: Float
     ): List<OrbitLayout> {
-        val totalAvailableSpace = availableRadius - startRadius
+        val layouts = mutableListOf<OrbitLayout>()
+        var currentDistance = startDistance
+        val reducedSpacing = MIN_ORBIT_SPACING * 0.5f
 
-        return layouts.mapIndexed { index, layout ->
-            val progress = if (layouts.size == 1) 0.4f else index.toFloat() / (layouts.size - 1)
-            val newDistance = startRadius + (totalAvailableSpace * progress * 0.85f)
+        orbitalBodies.forEach { body ->
+            val planetRadius = body.orbitalConfig.size
 
-            layout.copy(
-                orbitDistance = newDistance,
-                maxRadiusX = newDistance * (layout.maxRadiusX / layout.orbitDistance),
-                maxRadiusY = newDistance
-            )
-        }
-    }
+            val maxPossibleDistance = (maxUsableRadius - planetRadius) / ellipseRatio
 
-    private fun compressLayouts(
-        layouts: List<OrbitLayout>,
-        availableRadius: Float,
-        startRadius: Float
-    ): List<OrbitLayout> {
-        val totalAvailableSpace = availableRadius - startRadius
-        var currentRadius = startRadius
-
-        return layouts.map { layout ->
-            val planetSpace = layout.planetSize + PLANET_SAFETY_MARGIN
-
-            if (currentRadius + planetSpace > availableRadius) {
-                currentRadius = availableRadius - planetSpace
+            if (currentDistance > maxPossibleDistance) {
+                currentDistance = maxPossibleDistance.coerceAtLeast(startDistance)
             }
 
-            val compressedLayout = layout.copy(
-                orbitDistance = currentRadius,
-                maxRadiusX = currentRadius * (layout.maxRadiusX / layout.orbitDistance),
-                maxRadiusY = currentRadius
-            )
+            layouts.add(OrbitLayout(
+                orbitDistance = currentDistance,
+                planetSize = planetRadius
+            ))
 
-            currentRadius += planetSpace + ORBIT_PADDING * 0.5f
-
-            compressedLayout
+            currentDistance += reducedSpacing
         }
+
+        return layouts
     }
 }

@@ -26,15 +26,15 @@ object OrbitalDistanceCalculator {
         val updatedBodies = orbitalBodies.mapIndexed { index, orbitalBody ->
             val layout = layouts[index]
 
-            val updatedConfig = orbitalBody.orbitalConfig.copy(
-                distance = layout.orbitDistance,
-                size = layout.planetSize
+            orbitalBody.copy(
+                orbitalConfig = orbitalBody.orbitalConfig.copy(
+                    distance = layout.orbitDistance
+                    // Keep original size, don't overwrite it
+                )
             )
-
-            orbitalBody.copy(orbitalConfig = updatedConfig)
         }
 
-        return OrbitalSystem(star, updatedBodies)
+        return orbitalSystem.copy(orbitalBodies = updatedBodies)
     }
 
     fun recalculateOrbitalDistances(orbitalSystem: OrbitalSystem): OrbitalSystem {

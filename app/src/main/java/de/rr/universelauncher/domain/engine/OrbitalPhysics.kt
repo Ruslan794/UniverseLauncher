@@ -85,7 +85,7 @@ object OrbitalPhysics {
                 size = size,
                 startAngle = startAngle,
                 color = color,
-                ellipseRatio = 1.2f
+                ellipseRatio = 1.3f
             )
 
             OrbitalBody(app, orbitalConfig)

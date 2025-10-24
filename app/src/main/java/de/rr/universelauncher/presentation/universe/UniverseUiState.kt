@@ -1,6 +1,5 @@
 package de.rr.universelauncher.presentation.universe
 
-import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
 
 data class UniverseUiState(

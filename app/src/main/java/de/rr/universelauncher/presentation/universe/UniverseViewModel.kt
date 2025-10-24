@@ -10,6 +10,7 @@ import de.rr.universelauncher.domain.engine.OrbitalDistanceCalculator
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
 import de.rr.universelauncher.domain.model.emptyOrbitalSystemWithDefaultStar
+import androidx.compose.ui.geometry.Offset
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ class UniverseViewModel @Inject constructor(
     private val appRepository: AppRepository,
     private val launcherSettingsRepository: LauncherSettingsRepository
 ) : ViewModel() {
+
 
     private val _uiState = MutableStateFlow(UniverseUiState(
         orbitalSystem = emptyOrbitalSystemWithDefaultStar,
@@ -83,7 +85,7 @@ class UniverseViewModel @Inject constructor(
     }
 
 
-    fun onPlanetTapped(orbitalBody: OrbitalBody) {
+    fun onPlanetTapped(orbitalBody: OrbitalBody, planetPosition: Offset, planetSize: Float) {
         viewModelScope.launch {
             try {
                 appRepository.trackAppLaunch(orbitalBody.appInfo.packageName)
@@ -149,18 +151,34 @@ class UniverseViewModel @Inject constructor(
     fun updateCanvasSize(canvasSize: androidx.compose.ui.geometry.Size) {
         viewModelScope.launch {
             try {
-                val currentSystem = _uiState.value.orbitalSystem
-                val updatedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(currentSystem, canvasSize)
+                // Reload apps with current launch counts and recalculate everything
+                val allApps = appRepository.getInstalledAppsWithLaunchCounts()
+                val selectedApps = launcherSettingsRepository.getSelectedApps().first()
                 
+                val finalSelectedApps = if (selectedApps.isEmpty()) {
+                    val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
+                    val topAppPackages = topApps.map { it.packageName }.toSet()
+                    launcherSettingsRepository.setSelectedApps(topAppPackages)
+                    topAppPackages
+                } else {
+                    selectedApps
+                }
+                
+                val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
+                val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps)
+                
+                // Redistribute orbits with new canvas size
+                val updatedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(orbitalSystem, canvasSize)
+
                 _uiState.update {
                     it.copy(orbitalSystem = updatedSystem)
                 }
             } catch (e: Exception) {
-                // Log error but don't break the app
                 android.util.Log.e("UniverseViewModel", "Failed to update canvas size", e)
             }
         }
     }
+
 
 
     override fun onCleared() {

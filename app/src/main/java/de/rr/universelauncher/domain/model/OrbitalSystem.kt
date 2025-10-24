@@ -2,7 +2,7 @@ package de.rr.universelauncher.domain.model
 
 data class OrbitalSystem(
     val star: Star,
-    var orbitalBodies: List<OrbitalBody>
+    val orbitalBodies: List<OrbitalBody>
 )
 
 val emptyOrbitalSystemWithDefaultStar = OrbitalSystem(
