@@ -117,6 +117,8 @@ fun LauncherSettingsScreen(
                                 apps = uiState.allApps,
                                 selectedApps = uiState.selectedApps,
                                 appOrder = uiState.appOrder,
+                                searchQuery = uiState.searchQuery,
+                                onSearchQueryChange = viewModel::setSearchQuery,
                                 onToggleApp = viewModel::toggleAppSelection,
                                 onMoveUp = viewModel::moveAppUp,
                                 onMoveDown = viewModel::moveAppDown,
@@ -125,8 +127,8 @@ fun LauncherSettingsScreen(
                         }
                         SettingsTab.STATISTICS -> {
                             StatisticsView(
-                                apps = uiState.allApps,
-                                topUsedApps = viewModel.getTopUsedApps(),
+                                selectedApps = viewModel.getSelectedAppsWithStats(),
+                                appOrder = uiState.appOrder,
                                 onSetOrbitSpeed = viewModel::setAppOrbitSpeed
                             )
                         }
