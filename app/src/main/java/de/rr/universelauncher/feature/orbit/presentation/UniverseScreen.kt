@@ -1,44 +1,39 @@
 package de.rr.universelauncher.feature.orbit.presentation
 
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.rr.universelauncher.core.physics.domain.engine.OrbitalPhysics
-import de.rr.universelauncher.core.physics.domain.model.Planet
+import de.rr.universelauncher.core.physics.domain.model.OrbitalBody
 import de.rr.universelauncher.core.physics.domain.model.Star
 import de.rr.universelauncher.core.ui.theme.SpaceBackground
-import kotlinx.coroutines.delay
 import kotlin.math.*
 
 @Composable
 fun UniverseScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: UniverseViewModel = hiltViewModel()
 ) {
-    val density = LocalDensity.current
-    val system = remember { OrbitalPhysics.createSampleSolarSystem() }
-    
-    var animationTime by remember { mutableStateOf(0.0) }
-    val infiniteTransition = rememberInfiniteTransition(label = "orbit")
-    
-    val scaleFactor = 50f
-    
-    LaunchedEffect(Unit) {
-        while (true) {
-            animationTime += 0.1
-            delay(16)
-        }
-    }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     Box(
         modifier = modifier
@@ -46,51 +41,130 @@ fun UniverseScreen(
             .background(SpaceBackground)
             .padding(16.dp)
     ) {
-        Canvas(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            val centerX = size.width / 2f
-            val centerY = size.height / 2f
-            val center = Offset(centerX, centerY)
-            
-            drawOrbitalPaths(system, center, scaleFactor)
-            
-            drawStar(system.star, center)
-            
-            system.planets.forEach { planet ->
-                val position = OrbitalPhysics.calculatePlanetPosition(
-                    planet = planet,
-                    timeDays = animationTime,
-                    starMass = system.star.mass
-                )
-                
-                val screenX = centerX + (position.first * scaleFactor).toFloat()
-                val screenY = centerY + (position.second * scaleFactor).toFloat()
-                
-                drawPlanet(
-                    planet = planet,
-                    position = Offset(screenX, screenY)
-                )
+        when {
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
+            
+            uiState.error != null -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Error: ${uiState.error}",
+                        color = Color.White
+                    )
+                }
+            }
+            
+            uiState.orbitalSystem != null -> {
+                val orbitalSystem = uiState.orbitalSystem!!
+                
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = { offset ->
+                                    val centerX = size.width / 2f
+                                    val centerY = size.height / 2f
+                                    
+                                    orbitalSystem.orbitalBodies.forEach { orbitalBody ->
+                                        val position = OrbitalPhysics.calculateOrbitalBodyPosition(
+                                            orbitalBody = orbitalBody,
+                                            timeSeconds = uiState.animationTime
+                                        )
+                                        
+                                        val screenX = centerX + position.first
+                                        val screenY = centerY + position.second
+                                        val planetCenter = Offset(screenX, screenY)
+                                        
+                                        val distance = (offset - planetCenter).getDistance()
+                                        if (distance <= orbitalBody.orbitalConfig.size * 2) {
+                                            viewModel.onPlanetTapped(orbitalBody)
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                ) {
+                    val centerX = size.width / 2f
+                    val centerY = size.height / 2f
+                    val center = Offset(centerX, centerY)
+                    
+                    drawOrbitalPaths(orbitalSystem, center)
+                    drawStar(orbitalSystem.star, center)
+                    
+                    orbitalSystem.orbitalBodies.forEach { orbitalBody ->
+                        val position = OrbitalPhysics.calculateOrbitalBodyPosition(
+                            orbitalBody = orbitalBody,
+                            timeSeconds = uiState.animationTime
+                        )
+                        
+                        val screenX = centerX + position.first
+                        val screenY = centerY + position.second
+                        
+                        drawOrbitalBody(
+                            orbitalBody = orbitalBody,
+                            position = Offset(screenX, screenY)
+                        )
+                    }
+                }
+            }
+        }
+        
+        // App dialog
+        if (uiState.showAppDialog && uiState.selectedOrbitalBody != null) {
+            AlertDialog(
+                onDismissRequest = viewModel::onDismissDialog,
+                title = { Text(uiState.selectedOrbitalBody!!.appInfo.appName) },
+                text = { Text("Package: ${uiState.selectedOrbitalBody!!.appInfo.packageName}") },
+                confirmButton = {
+                    Button(onClick = viewModel::onLaunchApp) {
+                        Text("Launch")
+                    }
+                },
+                dismissButton = {
+                    Button(onClick = viewModel::onDismissDialog) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
 
 private fun DrawScope.drawOrbitalPaths(
     system: de.rr.universelauncher.core.physics.domain.model.OrbitalSystem,
-    center: Offset,
-    scaleFactor: Float
+    center: Offset
 ) {
-    system.planets.forEach { planet ->
-        val a = (planet.semiMajorAxis * scaleFactor).toFloat()
-        val b = (a * sqrt(1.0 - planet.eccentricity * planet.eccentricity)).toFloat()
+    system.orbitalBodies.forEach { orbitalBody ->
+        val pathPoints = OrbitalPhysics.calculateOrbitPathPoints(orbitalBody)
         
-        drawOval(
-            color = Color.White.copy(alpha = 0.1f),
-            topLeft = Offset(center.x - a, center.y - b),
-            size = androidx.compose.ui.geometry.Size(a * 2, b * 2),
-            style = Stroke(width = 1f)
-        )
+        if (pathPoints.isNotEmpty()) {
+            val path = Path()
+            val firstPoint = pathPoints[0]
+            path.moveTo(center.x + firstPoint.first, center.y + firstPoint.second)
+            
+            for (i in 1 until pathPoints.size) {
+                val point = pathPoints[i]
+                path.lineTo(center.x + point.first, center.y + point.second)
+            }
+            
+            path.close()
+            
+            drawPath(
+                path = path,
+                color = Color.White.copy(alpha = 0.1f),
+                style = Stroke(width = 1f)
+            )
+        }
     }
 }
 
@@ -111,19 +185,21 @@ private fun DrawScope.drawStar(
     )
 }
 
-private fun DrawScope.drawPlanet(
-    planet: Planet,
+private fun DrawScope.drawOrbitalBody(
+    orbitalBody: OrbitalBody,
     position: Offset
 ) {
+    val config = orbitalBody.orbitalConfig
+    
     drawCircle(
-        color = planet.color.copy(alpha = 0.2f),
-        radius = planet.radius * 1.5f,
+        color = config.color.copy(alpha = 0.2f),
+        radius = config.size * 1.5f,
         center = position
     )
     
     drawCircle(
-        color = planet.color,
-        radius = planet.radius,
+        color = config.color,
+        radius = config.size,
         center = position
     )
 }
