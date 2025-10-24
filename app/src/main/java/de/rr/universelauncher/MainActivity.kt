@@ -10,8 +10,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import de.rr.universelauncher.ui.OrbitScreen
-import de.rr.universelauncher.ui.theme.UniverseLauncherTheme
+import de.rr.universelauncher.feature.orbit.presentation.UniverseScreen
+import de.rr.universelauncher.core.ui.theme.UniverseLauncherTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             UniverseLauncherTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    OrbitScreen(
+                    UniverseScreen(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -33,6 +33,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun OrbitScreenPreview() {
     UniverseLauncherTheme {
-        OrbitScreen()
+        UniverseScreen()
     }
 }
