@@ -56,9 +56,13 @@ class AppRepositoryImpl @Inject constructor(
     override suspend fun getInstalledAppsWithLaunchCounts(): List<AppInfo> = withContext(Dispatchers.IO) {
         val apps = getInstalledApps()
         val launchCounts = launcherSettingsRepository.getAppLaunchCounts().first()
+        val orbitSpeeds = launcherSettingsRepository.getAppOrbitSpeeds().first()
         
         apps.map { app ->
-            app.copy(launchCount = launchCounts[app.packageName] ?: 0)
+            app.copy(
+                launchCount = launchCounts[app.packageName] ?: 0,
+                customOrbitSpeed = orbitSpeeds[app.packageName]
+            )
         }
     }
 

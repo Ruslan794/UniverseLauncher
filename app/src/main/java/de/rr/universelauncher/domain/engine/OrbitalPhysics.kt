@@ -65,20 +65,28 @@ object OrbitalPhysics {
         return points
     }
 
-    fun createOrbitalSystemFromApps(apps: List<AppInfo>): OrbitalSystem {
+    fun createOrbitalSystemFromApps(apps: List<AppInfo>, appOrder: Map<String, Int> = emptyMap()): OrbitalSystem {
         val sun = defaultStar
 
-        val maxPlanets = minOf(apps.size, 10)
+        val maxPlanets = minOf(apps.size, 6)
         val selectedApps = apps.take(maxPlanets)
 
         val planetSizes = PlanetSizeCalculator.calculatePlanetSizes(selectedApps)
 
-        val sortedApps = selectedApps.sortedByDescending {
-            planetSizes[it.packageName] ?: PlanetSizeCalculator.getMinPlanetSize()
+        // Sort by custom order if available, otherwise by planet size
+        val sortedApps = if (appOrder.isNotEmpty()) {
+            selectedApps.sortedBy { app ->
+                appOrder[app.packageName] ?: Int.MAX_VALUE
+            }
+        } else {
+            selectedApps.sortedByDescending {
+                planetSizes[it.packageName] ?: PlanetSizeCalculator.getMinPlanetSize()
+            }
         }
 
         val orbitalBodies = sortedApps.mapIndexed { index, app ->
-            val orbitDuration = 15f + (index * 3f)
+            // Use custom orbit speed if available, otherwise calculate based on index
+            val orbitDuration = app.customOrbitSpeed ?: (15f + (index * 3f))
             val size = planetSizes[app.packageName] ?: PlanetSizeCalculator.getMinPlanetSize()
             val startAngle = (index * 36f) % 360f
             val color = planetColors[index % planetColors.size]

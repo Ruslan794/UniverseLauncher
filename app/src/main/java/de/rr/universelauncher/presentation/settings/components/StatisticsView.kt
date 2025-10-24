@@ -28,6 +28,7 @@ import de.rr.universelauncher.domain.model.AppInfo
 fun StatisticsView(
     apps: List<AppInfo>,
     topUsedApps: List<AppInfo>,
+    onSetOrbitSpeed: (String, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -52,7 +53,10 @@ fun StatisticsView(
         }
 
         items(topUsedApps) { app ->
-            AppStatisticsItem(app = app)
+            AppStatisticsItem(
+                app = app,
+                onSetOrbitSpeed = { speed -> onSetOrbitSpeed(app.packageName, speed) }
+            )
         }
     }
 }
@@ -125,62 +129,142 @@ private fun StatisticItem(
 
 @Composable
 private fun AppStatisticsItem(
-    app: AppInfo
+    app: AppInfo,
+    onSetOrbitSpeed: (Float) -> Unit
 ) {
-    Row(
+    var orbitSpeed by remember { mutableStateOf(app.customOrbitSpeed ?: 30f) }
+    
+    // Calculate planet size using the same logic as PlanetSizeCalculator
+    val planetSize = remember(app.launchCount) {
+        val baseMin = 28f
+        val baseMax = 52f
+        val scaleFactor = when {
+            app.launchCount <= 3 -> 1.0f
+            app.launchCount <= 5 -> 0.85f
+            app.launchCount <= 7 -> 0.7f
+            app.launchCount <= 9 -> 0.6f
+            else -> 0.5f
+        }
+        val minRadius = baseMin * scaleFactor
+        val maxRadius = baseMax * scaleFactor
+        
+        if (app.launchCount == 0) minRadius else {
+            val normalizedValue = kotlin.math.ln((app.launchCount + 1).toFloat()) / kotlin.math.ln(100f)
+            minRadius + (normalizedValue * (maxRadius - minRadius))
+        }
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(
                 Color.White.copy(alpha = 0.1f),
                 RoundedCornerShape(8.dp)
             )
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(16.dp)
     ) {
-        Image(
-            painter = rememberDrawablePainter(app.icon),
-            contentDescription = app.appName,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-        )
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = app.appName,
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            Image(
+                painter = rememberDrawablePainter(app.icon),
+                contentDescription = app.appName,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
             )
-            Text(
-                text = app.packageName,
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = app.appName,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = app.packageName,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = "${app.launchCount}",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "launches",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp
+                )
+            }
         }
-
-        Column(
-            horizontalAlignment = Alignment.End
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // Planet size and orbit speed controls
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "${app.launchCount}",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "launches",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 12.sp
-            )
+            // Planet size (read-only)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Planet Size",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = "${planetSize.toInt()}px",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            // Orbit speed slider
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Orbit Speed: ${orbitSpeed.toInt()}s",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Slider(
+                    value = orbitSpeed,
+                    onValueChange = { newSpeed ->
+                        orbitSpeed = newSpeed
+                        onSetOrbitSpeed(newSpeed)
+                    },
+                    valueRange = 10f..60f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color.White,
+                        activeTrackColor = Color.White.copy(alpha = 0.7f),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
         }
     }
 }

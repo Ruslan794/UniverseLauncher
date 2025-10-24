@@ -73,4 +73,62 @@ class LauncherPreferences @Inject constructor(
                 ?.substringAfter(":")?.toIntOrNull() ?: 0
         }.first()
     }
+
+    fun getAppOrder(): Flow<Map<String, Int>> = dataStore.data.map { preferences ->
+        val orderString = preferences[AppSettings.APP_ORDER] ?: emptySet()
+        orderString.associate { entry ->
+            val parts = entry.split(":")
+            if (parts.size == 2) {
+                parts[0] to (parts[1].toIntOrNull() ?: 0)
+            } else {
+                "" to 0
+            }
+        }.filterKeys { it.isNotEmpty() }
+    }
+
+    suspend fun setAppOrder(appOrder: Map<String, Int>) {
+        try {
+            dataStore.edit { preferences ->
+                val orderSet = appOrder.map { "${it.key}:${it.value}" }.toSet()
+                preferences[AppSettings.APP_ORDER] = orderSet
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to set app order", e)
+            throw e
+        }
+    }
+
+    fun getAppOrbitSpeeds(): Flow<Map<String, Float>> = dataStore.data.map { preferences ->
+        val speedsString = preferences[AppSettings.APP_ORBIT_SPEEDS] ?: emptySet()
+        speedsString.associate { entry ->
+            val parts = entry.split(":")
+            if (parts.size == 2) {
+                parts[0] to (parts[1].toFloatOrNull() ?: 0f)
+            } else {
+                "" to 0f
+            }
+        }.filterKeys { it.isNotEmpty() }
+    }
+
+    suspend fun setAppOrbitSpeed(packageName: String, speed: Float) {
+        try {
+            dataStore.edit { preferences ->
+                val currentSpeeds = preferences[AppSettings.APP_ORBIT_SPEEDS] ?: emptySet()
+                val updatedSpeeds = currentSpeeds.filterNot { it.startsWith("$packageName:") }.toMutableSet()
+                updatedSpeeds.add("$packageName:$speed")
+                preferences[AppSettings.APP_ORBIT_SPEEDS] = updatedSpeeds
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to set orbit speed for $packageName", e)
+            throw e
+        }
+    }
+
+    suspend fun getAppOrbitSpeed(packageName: String): Float? {
+        return dataStore.data.map { preferences ->
+            val speedsString = preferences[AppSettings.APP_ORBIT_SPEEDS] ?: emptySet()
+            speedsString.find { it.startsWith("$packageName:") }
+                ?.substringAfter(":")?.toFloatOrNull()
+        }.first()
+    }
 }

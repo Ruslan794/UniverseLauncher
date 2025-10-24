@@ -21,4 +21,16 @@ class LauncherSettingsRepositoryImpl @Inject constructor(
     override suspend fun getAppLaunchCount(packageName: String): Int {
         return launcherPreferences.getAppLaunchCount(packageName)
     }
+
+    override fun getAppOrder(): Flow<Map<String, Int>> = launcherPreferences.getAppOrder()
+
+    override suspend fun setAppOrder(appOrder: Map<String, Int>) = launcherPreferences.setAppOrder(appOrder)
+
+    override fun getAppOrbitSpeeds(): Flow<Map<String, Float>> = launcherPreferences.getAppOrbitSpeeds()
+
+    override suspend fun setAppOrbitSpeed(packageName: String, speed: Float) = 
+        launcherPreferences.setAppOrbitSpeed(packageName, speed)
+
+    override suspend fun getAppOrbitSpeed(packageName: String): Float? = 
+        launcherPreferences.getAppOrbitSpeed(packageName)
 }

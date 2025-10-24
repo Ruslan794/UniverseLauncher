@@ -28,18 +28,30 @@ import de.rr.universelauncher.domain.model.AppInfo
 fun AppSelectionList(
     apps: List<AppInfo>,
     selectedApps: Set<String>,
+    appOrder: Map<String, Int>,
     onToggleApp: (String) -> Unit,
+    onMoveUp: (String) -> Unit,
+    onMoveDown: (String) -> Unit,
+    onSetPosition: (String, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isMaxSelected = selectedApps.size >= 6
+    
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(apps) { app ->
+            val isAppSelected = app.packageName in selectedApps
             AppSelectionItem(
                 app = app,
-                isSelected = app.packageName in selectedApps,
-                onToggle = { onToggleApp(app.packageName) }
+                isSelected = isAppSelected,
+                position = appOrder[app.packageName] ?: 0,
+                isDisabled = !isAppSelected && isMaxSelected,
+                onToggle = { onToggleApp(app.packageName) },
+                onMoveUp = { onMoveUp(app.packageName) },
+                onMoveDown = { onMoveDown(app.packageName) },
+                onSetPosition = { position -> onSetPosition(app.packageName, position) }
             )
         }
     }
@@ -49,7 +61,12 @@ fun AppSelectionList(
 private fun AppSelectionItem(
     app: AppInfo,
     isSelected: Boolean,
-    onToggle: () -> Unit
+    position: Int,
+    isDisabled: Boolean = false,
+    onToggle: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onSetPosition: (Int) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -58,10 +75,67 @@ private fun AppSelectionItem(
                 Color.White.copy(alpha = 0.1f),
                 RoundedCornerShape(8.dp)
             )
-            .clickable { onToggle() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Reordering controls
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(60.dp)
+        ) {
+            // Up arrow
+            Button(
+                onClick = onMoveUp,
+                modifier = Modifier.size(24.dp),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White.copy(alpha = 0.2f)
+                )
+            ) {
+                Text("↑", color = Color.White, fontSize = 12.sp)
+            }
+            
+            // Position number
+            OutlinedTextField(
+                value = position.toString(),
+                onValueChange = { 
+                    it.toIntOrNull()?.let { newPos -> 
+                        if (newPos > 0) onSetPosition(newPos)
+                    }
+                },
+                modifier = Modifier
+                    .width(40.dp)
+                    .height(32.dp),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color.White.copy(alpha = 0.5f),
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f)
+                ),
+                singleLine = true
+            )
+            
+            // Down arrow
+            Button(
+                onClick = onMoveDown,
+                modifier = Modifier.size(24.dp),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White.copy(alpha = 0.2f)
+                )
+            ) {
+                Text("↓", color = Color.White, fontSize = 12.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // App icon and info
         Image(
             painter = rememberDrawablePainter(app.icon),
             contentDescription = app.appName,
@@ -92,12 +166,16 @@ private fun AppSelectionItem(
             )
         }
 
+        // Selection checkbox
         Checkbox(
             checked = isSelected,
-            onCheckedChange = { onToggle() },
+            onCheckedChange = if (isDisabled) null else { _ -> onToggle() },
+            enabled = !isDisabled,
             colors = CheckboxDefaults.colors(
                 checkedColor = Color.White,
-                uncheckedColor = Color.White.copy(alpha = 0.5f)
+                uncheckedColor = Color.White.copy(alpha = 0.5f),
+                disabledCheckedColor = Color.White.copy(alpha = 0.3f),
+                disabledUncheckedColor = Color.White.copy(alpha = 0.2f)
             )
         )
     }

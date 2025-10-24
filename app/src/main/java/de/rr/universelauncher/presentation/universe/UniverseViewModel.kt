@@ -66,7 +66,8 @@ class UniverseViewModel @Inject constructor(
 
                 val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
 
-                val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps)
+                val appOrder = launcherSettingsRepository.getAppOrder().first()
+                val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps, appOrder)
                 val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
                     orbitalSystem,
                     currentCanvasSize
@@ -116,6 +117,7 @@ class UniverseViewModel @Inject constructor(
 
     private fun observeSettingsChanges() {
         viewModelScope.launch {
+            // Observe both selected apps and orbit speeds changes
             launcherSettingsRepository.getSelectedApps()
                 .catch { e ->
                     _uiState.update {
@@ -127,13 +129,28 @@ class UniverseViewModel @Inject constructor(
                     loadAppsWithSelectedApps(selectedApps)
                 }
         }
+        
+        viewModelScope.launch {
+            // Observe orbit speed changes and reload universe
+            launcherSettingsRepository.getAppOrbitSpeeds()
+                .catch { e ->
+                    _uiState.update {
+                        it.copy(error = e.message ?: "Failed to observe orbit speed changes")
+                    }
+                }
+                .collect { orbitSpeeds ->
+                    // Reload apps when orbit speeds change
+                    reloadUniverse()
+                }
+        }
     }
 
     private suspend fun loadAppsWithSelectedApps(selectedApps: Set<String>) {
         try {
             val allApps = appRepository.getInstalledAppsWithLaunchCounts()
             val filteredApps = allApps.filter { it.packageName in selectedApps }
-            val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps)
+            val appOrder = launcherSettingsRepository.getAppOrder().first()
+            val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps, appOrder)
             val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
                 orbitalSystem,
                 currentCanvasSize
@@ -151,6 +168,35 @@ class UniverseViewModel @Inject constructor(
                 it.copy(
                     isLoading = false,
                     error = e.message ?: "Failed to load apps"
+                )
+            }
+        }
+    }
+
+    private suspend fun reloadUniverse() {
+        try {
+            val allApps = appRepository.getInstalledAppsWithLaunchCounts()
+            val selectedApps = launcherSettingsRepository.getSelectedApps().first()
+            val filteredApps = allApps.filter { it.packageName in selectedApps }
+            val appOrder = launcherSettingsRepository.getAppOrder().first()
+            val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps, appOrder)
+            val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
+                orbitalSystem,
+                currentCanvasSize
+            )
+
+            _uiState.update {
+                it.copy(
+                    orbitalSystem = distributedSystem,
+                    isLoading = false,
+                    error = null
+                )
+            }
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = e.message ?: "Failed to reload universe"
                 )
             }
         }

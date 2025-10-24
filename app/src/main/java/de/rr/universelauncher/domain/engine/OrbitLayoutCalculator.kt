@@ -12,7 +12,7 @@ data class OrbitLayout(
 
 object OrbitLayoutCalculator {
 
-    private const val EDGE_PADDING = 30f
+    private const val EDGE_PADDING = 20f
 
     fun calculateOrbitLayouts(
         star: Star,
@@ -25,7 +25,7 @@ object OrbitLayoutCalculator {
         val ellipseRatio = orbitalBodies.firstOrNull()?.orbitalConfig?.ellipseRatio ?: 1.3f
 
         val maxUsableRadius = canvasRadius - EDGE_PADDING
-        val maxOrbitDistance = maxUsableRadius / ellipseRatio
+        val maxOrbitDistance = maxUsableRadius
 
         val firstPlanetRadius = orbitalBodies.first().orbitalConfig.size
         val minOrbitDistance = star.radius + star.deadZone + firstPlanetRadius + 30f

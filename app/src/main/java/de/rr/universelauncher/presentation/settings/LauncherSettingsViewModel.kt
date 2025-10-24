@@ -36,6 +36,7 @@ class LauncherSettingsViewModel @Inject constructor(
             try {
                 // Load apps with launch counts
                 val allApps = appRepository.getInstalledAppsWithLaunchCounts()
+                val appOrder = launcherSettingsRepository.getAppOrder().first()
                 
                 // Start observing selected apps changes
                 launcherSettingsRepository.getSelectedApps()
@@ -52,6 +53,7 @@ class LauncherSettingsViewModel @Inject constructor(
                             it.copy(
                                 allApps = allApps,
                                 selectedApps = selectedApps,
+                                appOrder = appOrder,
                                 isLoading = false,
                                 error = null
                             )
@@ -72,14 +74,30 @@ class LauncherSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val currentSelected = _uiState.value.selectedApps
-                val newSelected = if (packageName in currentSelected) {
-                    currentSelected - packageName
-                } else {
-                    currentSelected + packageName
-                }
+                val currentOrder = _uiState.value.appOrder
                 
-                // Update repository first, then UI will be updated via Flow
-                launcherSettingsRepository.setSelectedApps(newSelected)
+                if (packageName in currentSelected) {
+                    // Removing app - keep its position for when re-selected
+                    val newSelected = currentSelected - packageName
+                    launcherSettingsRepository.setSelectedApps(newSelected)
+                } else {
+                    // Adding app - check if we're at max limit (6)
+                    if (currentSelected.size >= 6) {
+                        _uiState.update {
+                            it.copy(error = "Maximum 6 apps can be selected")
+                        }
+                        return@launch
+                    }
+                    
+                    // Assign next available position
+                    val nextPosition = (currentOrder.values.maxOrNull() ?: 0) + 1
+                    val newOrder = currentOrder.toMutableMap()
+                    newOrder[packageName] = nextPosition
+                    
+                    val newSelected = currentSelected + packageName
+                    launcherSettingsRepository.setSelectedApps(newSelected)
+                    launcherSettingsRepository.setAppOrder(newOrder)
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Failed to update app selection")
@@ -96,5 +114,98 @@ class LauncherSettingsViewModel @Inject constructor(
         return _uiState.value.allApps
             .sortedByDescending { it.launchCount }
             .take(10)
+    }
+
+    fun moveAppUp(packageName: String) {
+        viewModelScope.launch {
+            try {
+                val currentOrder = launcherSettingsRepository.getAppOrder().first()
+                val currentPosition = currentOrder[packageName] ?: return@launch
+                
+                if (currentPosition > 1) {
+                    val newOrder = currentOrder.toMutableMap()
+                    newOrder[packageName] = currentPosition - 1
+                    
+                    // Find app at position - 1 and swap
+                    val otherApp = newOrder.entries.find { it.value == currentPosition - 1 }
+                    otherApp?.let { 
+                        newOrder[it.key] = currentPosition
+                    }
+                    
+                    launcherSettingsRepository.setAppOrder(newOrder)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to move app up")
+                }
+            }
+        }
+    }
+
+    fun moveAppDown(packageName: String) {
+        viewModelScope.launch {
+            try {
+                val currentOrder = launcherSettingsRepository.getAppOrder().first()
+                val currentPosition = currentOrder[packageName] ?: return@launch
+                val maxPosition = currentOrder.values.maxOrNull() ?: 0
+                
+                if (currentPosition < maxPosition) {
+                    val newOrder = currentOrder.toMutableMap()
+                    newOrder[packageName] = currentPosition + 1
+                    
+                    // Find app at position + 1 and swap
+                    val otherApp = newOrder.entries.find { it.value == currentPosition + 1 }
+                    otherApp?.let { 
+                        newOrder[it.key] = currentPosition
+                    }
+                    
+                    launcherSettingsRepository.setAppOrder(newOrder)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to move app down")
+                }
+            }
+        }
+    }
+
+    fun setAppPosition(packageName: String, position: Int) {
+        viewModelScope.launch {
+            try {
+                val currentOrder = launcherSettingsRepository.getAppOrder().first().toMutableMap()
+                val oldPosition = currentOrder[packageName]
+                
+                if (oldPosition != null) {
+                    // Find app at target position and swap
+                    val otherApp = currentOrder.entries.find { it.value == position }
+                    otherApp?.let { 
+                        currentOrder[it.key] = oldPosition
+                    }
+                }
+                
+                currentOrder[packageName] = position
+                launcherSettingsRepository.setAppOrder(currentOrder)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to set app position")
+                }
+            }
+        }
+    }
+
+    fun setAppOrbitSpeed(packageName: String, speed: Float) {
+        viewModelScope.launch {
+            try {
+                launcherSettingsRepository.setAppOrbitSpeed(packageName, speed)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to set orbit speed")
+                }
+            }
+        }
+    }
+
+    fun getAppOrder(): Map<String, Int> {
+        return _uiState.value.appOrder
     }
 }

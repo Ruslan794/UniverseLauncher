@@ -8,4 +8,9 @@ interface LauncherSettingsRepository {
     fun getAppLaunchCounts(): Flow<Map<String, Int>>
     suspend fun incrementAppLaunchCount(packageName: String)
     suspend fun getAppLaunchCount(packageName: String): Int
+    fun getAppOrder(): Flow<Map<String, Int>>
+    suspend fun setAppOrder(appOrder: Map<String, Int>)
+    fun getAppOrbitSpeeds(): Flow<Map<String, Float>>
+    suspend fun setAppOrbitSpeed(packageName: String, speed: Float)
+    suspend fun getAppOrbitSpeed(packageName: String): Float?
 }

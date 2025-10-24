@@ -116,13 +116,18 @@ fun LauncherSettingsScreen(
                             AppSelectionList(
                                 apps = uiState.allApps,
                                 selectedApps = uiState.selectedApps,
-                                onToggleApp = viewModel::toggleAppSelection
+                                appOrder = uiState.appOrder,
+                                onToggleApp = viewModel::toggleAppSelection,
+                                onMoveUp = viewModel::moveAppUp,
+                                onMoveDown = viewModel::moveAppDown,
+                                onSetPosition = viewModel::setAppPosition
                             )
                         }
                         SettingsTab.STATISTICS -> {
                             StatisticsView(
                                 apps = uiState.allApps,
-                                topUsedApps = viewModel.getTopUsedApps()
+                                topUsedApps = viewModel.getTopUsedApps(),
+                                onSetOrbitSpeed = viewModel::setAppOrbitSpeed
                             )
                         }
                     }
