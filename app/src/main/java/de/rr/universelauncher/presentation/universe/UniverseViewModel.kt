@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -56,13 +58,11 @@ class UniverseViewModel @Inject constructor(
                 val allApps = appRepository.getInstalledAppsWithLaunchCounts()
                 val selectedApps = launcherSettingsRepository.getSelectedApps().first()
 
-                val finalSelectedApps = if (selectedApps.isEmpty()) {
+                val finalSelectedApps = selectedApps.ifEmpty {
                     val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
                     val topAppPackages = topApps.map { it.packageName }.toSet()
                     launcherSettingsRepository.setSelectedApps(topAppPackages)
                     topAppPackages
-                } else {
-                    selectedApps
                 }
 
                 val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
@@ -116,6 +116,7 @@ class UniverseViewModel @Inject constructor(
         }
     }
 
+    @OptIn(FlowPreview::class)
     private fun observeSettingsChanges() {
         viewModelScope.launch {
             // Combine all settings changes into a single observer to prevent redundant reloads
@@ -126,6 +127,7 @@ class UniverseViewModel @Inject constructor(
             ) { selectedApps, orbitSpeeds, planetSizes ->
                 Triple(selectedApps, orbitSpeeds, planetSizes)
             }
+            .debounce(300) // Debounce settings changes by 300ms
             .catch { e ->
                 _uiState.update {
                     it.copy(error = e.message ?: "Failed to observe settings changes")

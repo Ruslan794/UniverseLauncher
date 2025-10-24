@@ -8,12 +8,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.rr.universelauncher.presentation.theme.SpaceBackground
 import de.rr.universelauncher.presentation.universe.components.UniverseCanvas
 import de.rr.universelauncher.presentation.settings.LauncherSettingsScreen
+import androidx.compose.foundation.Image
+import de.rr.universelauncher.R
 
 @Composable
 fun UniverseScreen(
@@ -23,10 +27,20 @@ fun UniverseScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(SpaceBackground)
+        modifier = modifier.fillMaxSize()
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.stars_background),
+            contentDescription = "Stars background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.3f))
+        )
         when {
             uiState.isLoading -> {
                 Box(

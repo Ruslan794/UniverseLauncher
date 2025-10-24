@@ -10,8 +10,11 @@ import de.rr.universelauncher.domain.model.OrbitalSystem
 import de.rr.universelauncher.presentation.universe.components.cache.IconCache
 import de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ImageBitmap
 
 object UniverseRenderer {
+
+    var sunBitmap: ImageBitmap? = null
 
     fun drawUniverse(
         drawScope: DrawScope,
@@ -23,7 +26,7 @@ object UniverseRenderer {
         canvasSize: Size
     ) {
         // Orbit paths are now drawn in PlanetRenderingEngine for better performance
-        drawStar(drawScope, orbitalSystem.star, center)
+        drawStar(drawScope, orbitalSystem.star, center, sunBitmap)
         drawPlanets(drawScope, orbitalSystem, animationTime, center, iconCache, canvasSize, orbitPathCache)
     }
 
@@ -43,18 +46,49 @@ object UniverseRenderer {
     private fun drawStar(
         drawScope: DrawScope,
         star: de.rr.universelauncher.domain.model.Star,
+        center: Offset,
+        sunImage: ImageBitmap?
+    ) {
+        // Always draw the enhanced sun design
+        drawEnhancedSun(drawScope, star, center)
+    }
+    
+    private fun drawEnhancedSun(
+        drawScope: DrawScope,
+        star: de.rr.universelauncher.domain.model.Star,
         center: Offset
     ) {
+        val baseRadius = star.radius
+        val sunColor = Color(0xFFFFD700) // Golden yellow
+        val brightColor = Color(0xFFFFF8DC) // Cream white
+        val shadowColor = Color(0xFFB8860B) // Dark goldenrod
+        
+        // Soft outer glow
         drawScope.drawCircle(
-            color = star.color.copy(alpha = 0.3f),
-            radius = star.radius * 1.5f,
+            color = sunColor.copy(alpha = 0.15f),
+            radius = baseRadius * 1.6f,
             center = center
         )
-
+        
+        // Main sun body
         drawScope.drawCircle(
-            color = star.color,
-            radius = star.radius,
+            color = sunColor,
+            radius = baseRadius,
             center = center
+        )
+        
+        // Subtle inner highlight (reflection)
+        drawScope.drawCircle(
+            color = brightColor.copy(alpha = 0.4f),
+            radius = baseRadius * 0.6f,
+            center = center + Offset(-baseRadius * 0.2f, -baseRadius * 0.2f)
+        )
+        
+        // Soft shadow on the bottom
+        drawScope.drawCircle(
+            color = shadowColor.copy(alpha = 0.3f),
+            radius = baseRadius * 0.8f,
+            center = center + Offset(baseRadius * 0.1f, baseRadius * 0.1f)
         )
     }
 

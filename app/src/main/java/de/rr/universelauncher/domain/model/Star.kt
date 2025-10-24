@@ -9,7 +9,7 @@ data class Star(
 )
 
 val defaultStar = Star(
-    radius = 40f,
+    radius = 80f,
     color = Color(0xFFFFD700),
     deadZone = 40f
 )

@@ -15,10 +15,10 @@ fun rememberOrbitPathCache(
     return remember(
         orbitalSystem.orbitalBodies.map { 
             it.orbitalConfig.distance to it.orbitalConfig.ellipseRatio to it.appInfo.packageName 
-        }, 
-        center
+        }
     ) {
-        OrbitPathCache.create(orbitalSystem, center)
+        // Create cache with relative coordinates (independent of center)
+        OrbitPathCache.createRelative(orbitalSystem)
     }
 }
 
@@ -41,6 +41,32 @@ class OrbitPathCache private constructor(
                         for (i in 1 until pathPoints.size) {
                             val point = pathPoints[i]
                             path.lineTo(center.x + point.first, center.y + point.second)
+                        }
+
+                        path.close()
+                        paths[orbitalBody.appInfo.packageName] = path
+                    }
+                }
+            }
+
+            return OrbitPathCache(paths)
+        }
+        
+        fun createRelative(orbitalSystem: OrbitalSystem): OrbitPathCache {
+            val paths = mutableMapOf<String, Path>()
+
+            orbitalSystem.orbitalBodies.forEach { orbitalBody ->
+                if (orbitalBody.orbitalConfig.distance > 0) {
+                    val pathPoints = OrbitalPhysics.calculateOrbitPathPoints(orbitalBody)
+
+                    if (pathPoints.isNotEmpty()) {
+                        val path = Path()
+                        val firstPoint = pathPoints[0]
+                        path.moveTo(firstPoint.first, firstPoint.second)
+
+                        for (i in 1 until pathPoints.size) {
+                            val point = pathPoints[i]
+                            path.lineTo(point.first, point.second)
                         }
 
                         path.close()

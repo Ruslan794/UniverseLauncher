@@ -57,6 +57,11 @@ object PlanetRenderingEngine {
         return SizeCalculation(planetCount, radialSlotSize, maxPlanetRadius, sizeLookup)
     }
 
+    // Cache for canvas analysis to avoid recalculating every frame
+    private var cachedCanvasAnalysis: CanvasAnalysis? = null
+    private var cachedSizeCalculation: SizeCalculation? = null
+    private var lastCanvasSize: Size = Size.Zero
+
     fun drawPlanets(
         drawScope: DrawScope,
         orbitalSystem: OrbitalSystem,
@@ -65,12 +70,20 @@ object PlanetRenderingEngine {
         iconCache: IconCache? = null,
         orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null
     ) {
-        // Cache analysis results to avoid recalculating every frame
-        val canvasAnalysis = analyzeCanvas(canvasSize, orbitalSystem.star)
-        val sizeCalculation = calculateSizes(orbitalSystem.orbitalBodies, canvasAnalysis)
+        // Only recalculate analysis if canvas size changed significantly
+        val canvasAnalysis = if (lastCanvasSize != canvasSize) {
+            lastCanvasSize = canvasSize
+            analyzeCanvas(canvasSize, orbitalSystem.star).also { cachedCanvasAnalysis = it }
+        } else {
+            cachedCanvasAnalysis ?: analyzeCanvas(canvasSize, orbitalSystem.star)
+        }
         
-        // Only log performance issues, not every frame
-        val renderStartTime = System.nanoTime()
+        val sizeCalculation = if (cachedSizeCalculation == null || lastCanvasSize != canvasSize) {
+            calculateSizes(orbitalSystem.orbitalBodies, canvasAnalysis).also { cachedSizeCalculation = it }
+        } else {
+            cachedSizeCalculation!!
+        }
+        
         orbitalSystem.orbitalBodies.forEachIndexed { index, orbitalBody ->
             drawSinglePlanet(
                 drawScope = drawScope,
@@ -82,12 +95,6 @@ object PlanetRenderingEngine {
                 iconCache = iconCache,
                 orbitPathCache = orbitPathCache
             )
-        }
-        val renderTime = (System.nanoTime() - renderStartTime) / 1_000_000.0
-        
-        // Only log if there are significant performance issues
-        if (renderTime > 2.0) {
-            Log.w("PlanetRendering", "Slow render: ${"%.2f".format(renderTime)}ms, Planets: ${orbitalSystem.orbitalBodies.size}")
         }
     }
 
@@ -113,8 +120,11 @@ object PlanetRenderingEngine {
         // 12. Orbit-Pfad zeichnen (aus Cache oder neu erstellen)
         val orbitPath = orbitPathCache?.getPath(orbitalBody)
         if (orbitPath != null) {
+            // Apply center offset to relative path
+            val translatedPath = Path()
+            translatedPath.addPath(orbitPath, canvasAnalysis.center)
             drawScope.drawPath(
-                path = orbitPath,
+                path = translatedPath,
                 color = Color.White.copy(alpha = RenderingConstants.ORBIT_LINE_ALPHA),
                 style = Stroke(width = RenderingConstants.ORBIT_LINE_WIDTH)
             )
