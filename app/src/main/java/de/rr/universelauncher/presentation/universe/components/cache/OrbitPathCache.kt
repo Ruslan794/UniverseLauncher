@@ -14,7 +14,7 @@ fun rememberOrbitPathCache(
 ): OrbitPathCache {
     return remember(
         orbitalSystem.orbitalBodies.map { 
-            it.orbitalConfig.distance to it.orbitalConfig.size to it.appInfo.packageName 
+            it.orbitalConfig.distance to it.orbitalConfig.sizeCategory to it.appInfo.packageName 
         }, 
         center
     ) {

@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.rr.universelauncher.domain.model.AppInfo
+import de.rr.universelauncher.domain.model.PlanetSize
 import de.rr.universelauncher.domain.repository.AppRepository
 import de.rr.universelauncher.domain.repository.LauncherSettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -57,11 +58,21 @@ class AppRepositoryImpl @Inject constructor(
         val apps = getInstalledApps()
         val launchCounts = launcherSettingsRepository.getAppLaunchCounts().first()
         val orbitSpeeds = launcherSettingsRepository.getAppOrbitSpeeds().first()
+        val planetSizes = launcherSettingsRepository.getAppPlanetSizes().first()
         
         apps.map { app ->
+            val planetSizeString = planetSizes[app.packageName]
+            val customPlanetSize = when (planetSizeString) {
+                "SMALL" -> PlanetSize.SMALL
+                "MEDIUM" -> PlanetSize.MEDIUM
+                "LARGE" -> PlanetSize.LARGE
+                else -> null
+            }
+            
             app.copy(
                 launchCount = launchCounts[app.packageName] ?: 0,
-                customOrbitSpeed = orbitSpeeds[app.packageName]
+                customOrbitSpeed = orbitSpeeds[app.packageName],
+                customPlanetSize = customPlanetSize
             )
         }
     }

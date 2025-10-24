@@ -13,4 +13,7 @@ interface LauncherSettingsRepository {
     fun getAppOrbitSpeeds(): Flow<Map<String, Float>>
     suspend fun setAppOrbitSpeed(packageName: String, speed: Float)
     suspend fun getAppOrbitSpeed(packageName: String): Float?
+    fun getAppPlanetSizes(): Flow<Map<String, String>>
+    suspend fun setAppPlanetSize(packageName: String, size: String)
+    suspend fun getAppPlanetSize(packageName: String): String?
 }

@@ -131,4 +131,38 @@ class LauncherPreferences @Inject constructor(
                 ?.substringAfter(":")?.toFloatOrNull()
         }.first()
     }
+
+    fun getAppPlanetSizes(): Flow<Map<String, String>> = dataStore.data.map { preferences ->
+        val sizesString = preferences[AppSettings.APP_PLANET_SIZES] ?: emptySet()
+        sizesString.associate { entry ->
+            val parts = entry.split(":")
+            if (parts.size == 2) {
+                parts[0] to parts[1]
+            } else {
+                "" to "MEDIUM"
+            }
+        }.filterKeys { it.isNotEmpty() }
+    }
+
+    suspend fun setAppPlanetSize(packageName: String, size: String) {
+        try {
+            dataStore.edit { preferences ->
+                val currentSizes = preferences[AppSettings.APP_PLANET_SIZES] ?: emptySet()
+                val updatedSizes = currentSizes.filterNot { it.startsWith("$packageName:") }.toMutableSet()
+                updatedSizes.add("$packageName:$size")
+                preferences[AppSettings.APP_PLANET_SIZES] = updatedSizes
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to set planet size for $packageName", e)
+            throw e
+        }
+    }
+
+    suspend fun getAppPlanetSize(packageName: String): String? {
+        return dataStore.data.map { preferences ->
+            val sizesString = preferences[AppSettings.APP_PLANET_SIZES] ?: emptySet()
+            sizesString.find { it.startsWith("$packageName:") }
+                ?.substringAfter(":")
+        }.first()
+    }
 }

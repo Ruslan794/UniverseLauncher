@@ -6,6 +6,8 @@ import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalConfig
 import de.rr.universelauncher.domain.model.AppInfo
 import de.rr.universelauncher.domain.model.defaultStar
+import de.rr.universelauncher.domain.model.PlanetSize
+import androidx.compose.ui.geometry.Size
 import kotlin.math.*
 
 object OrbitalPhysics {
@@ -71,30 +73,26 @@ object OrbitalPhysics {
         val maxPlanets = minOf(apps.size, 6)
         val selectedApps = apps.take(maxPlanets)
 
-        val planetSizes = PlanetSizeCalculator.calculatePlanetSizes(selectedApps)
-
-        // Sort by custom order if available, otherwise by planet size
+        // Sort by custom order if available, otherwise by launch count
         val sortedApps = if (appOrder.isNotEmpty()) {
             selectedApps.sortedBy { app ->
                 appOrder[app.packageName] ?: Int.MAX_VALUE
             }
         } else {
-            selectedApps.sortedByDescending {
-                planetSizes[it.packageName] ?: PlanetSizeCalculator.getMinPlanetSize()
-            }
+            selectedApps.sortedByDescending { it.launchCount }
         }
 
         val orbitalBodies = sortedApps.mapIndexed { index, app ->
             // Use custom orbit speed if available, otherwise calculate based on index
             val orbitDuration = app.customOrbitSpeed ?: (15f + (index * 3f))
-            val size = planetSizes[app.packageName] ?: PlanetSizeCalculator.getMinPlanetSize()
+            val sizeCategory = app.customPlanetSize ?: PlanetSize.MEDIUM // Default to medium
             val startAngle = (index * 36f) % 360f
             val color = planetColors[index % planetColors.size]
 
             val orbitalConfig = OrbitalConfig(
                 distance = 0f,
                 orbitDuration = orbitDuration,
-                size = size,
+                sizeCategory = sizeCategory,
                 startAngle = startAngle,
                 color = color,
                 ellipseRatio = 1.3f
@@ -106,4 +104,5 @@ object OrbitalPhysics {
         val initialSystem = OrbitalSystem(sun, orbitalBodies)
         return OrbitalDistanceCalculator.recalculateOrbitalDistances(initialSystem)
     }
+
 }

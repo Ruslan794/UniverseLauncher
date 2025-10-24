@@ -17,7 +17,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.rr.universelauncher.presentation.theme.SpaceBackground
 import de.rr.universelauncher.presentation.settings.components.AppSelectionList
-import de.rr.universelauncher.presentation.settings.components.StatisticsView
+import de.rr.universelauncher.presentation.settings.components.AppSettingsDialog
+import de.rr.universelauncher.domain.model.PlanetSize
+import de.rr.universelauncher.domain.model.AppInfo
 
 @Composable
 fun LauncherSettingsScreen(
@@ -26,6 +28,7 @@ fun LauncherSettingsScreen(
     viewModel: LauncherSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showAppSettings by remember { mutableStateOf<AppInfo?>(null) }
 
     Box(
         modifier = modifier
@@ -37,56 +40,6 @@ fun LauncherSettingsScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Launcher Settings",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Button(
-                    onClick = onClose,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.2f)
-                    )
-                ) {
-                    Text("Close", color = Color.White)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Tab Row
-            TabRow(
-                selectedTabIndex = uiState.currentTab.ordinal,
-                containerColor = Color.Transparent,
-                contentColor = Color.White
-            ) {
-                SettingsTab.values().forEachIndexed { index, tab ->
-                    Tab(
-                        selected = uiState.currentTab == tab,
-                        onClick = { viewModel.setCurrentTab(tab) },
-                        text = {
-                            Text(
-                                text = when (tab) {
-                                    SettingsTab.APP_SELECTION -> "App Selection"
-                                    SettingsTab.STATISTICS -> "Statistics"
-                                },
-                                color = Color.White
-                            )
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Content
             when {
                 uiState.isLoading -> {
@@ -111,30 +64,35 @@ fun LauncherSettingsScreen(
                 }
 
                 else -> {
-                    when (uiState.currentTab) {
-                        SettingsTab.APP_SELECTION -> {
-                            AppSelectionList(
-                                apps = uiState.allApps,
-                                selectedApps = uiState.selectedApps,
-                                appOrder = uiState.appOrder,
-                                searchQuery = uiState.searchQuery,
-                                onSearchQueryChange = viewModel::setSearchQuery,
-                                onToggleApp = viewModel::toggleAppSelection,
-                                onMoveUp = viewModel::moveAppUp,
-                                onMoveDown = viewModel::moveAppDown,
-                                onSetPosition = viewModel::setAppPosition
-                            )
-                        }
-                        SettingsTab.STATISTICS -> {
-                            StatisticsView(
-                                selectedApps = viewModel.getSelectedAppsWithStats(),
-                                appOrder = uiState.appOrder,
-                                onSetOrbitSpeed = viewModel::setAppOrbitSpeed
-                            )
-                        }
-                    }
+                    AppSelectionList(
+                        apps = uiState.allApps,
+                        selectedApps = uiState.selectedApps,
+                        appOrder = uiState.appOrder,
+                        searchQuery = uiState.searchQuery,
+                        onSearchQueryChange = viewModel::setSearchQuery,
+                        onToggleApp = viewModel::toggleAppSelection,
+                        onMoveUp = viewModel::moveAppUp,
+                        onMoveDown = viewModel::moveAppDown,
+                        onSetPosition = viewModel::setAppPosition,
+                        onAppSettings = { app -> showAppSettings = app }
+                    )
                 }
             }
         }
+    }
+
+    // App Settings Dialog
+    showAppSettings?.let { app ->
+        AppSettingsDialog(
+            app = app,
+            currentSize = app.customPlanetSize ?: PlanetSize.MEDIUM,
+            currentSpeed = app.customOrbitSpeed ?: 30f,
+            onDismiss = { showAppSettings = null },
+            onSave = { size, speed ->
+                viewModel.setAppOrbitSpeed(app.packageName, speed)
+                viewModel.setAppPlanetSize(app.packageName, size.name)
+                showAppSettings = null
+            }
+        )
     }
 }

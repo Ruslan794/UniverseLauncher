@@ -7,5 +7,6 @@ data class AppInfo(
     val appName: String,
     val icon: Drawable,
     val launchCount: Int = 0,
-    val customOrbitSpeed: Float? = null
+    val customOrbitSpeed: Float? = null,
+    val customPlanetSize: PlanetSize? = null
 )

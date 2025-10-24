@@ -33,4 +33,12 @@ class LauncherSettingsRepositoryImpl @Inject constructor(
 
     override suspend fun getAppOrbitSpeed(packageName: String): Float? = 
         launcherPreferences.getAppOrbitSpeed(packageName)
+
+    override fun getAppPlanetSizes(): Flow<Map<String, String>> = launcherPreferences.getAppPlanetSizes()
+
+    override suspend fun setAppPlanetSize(packageName: String, size: String) = 
+        launcherPreferences.setAppPlanetSize(packageName, size)
+
+    override suspend fun getAppPlanetSize(packageName: String): String? = 
+        launcherPreferences.getAppPlanetSize(packageName)
 }

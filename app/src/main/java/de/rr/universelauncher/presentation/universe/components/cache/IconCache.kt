@@ -22,17 +22,19 @@ class IconCache {
     private val cache = mutableMapOf<String, ImageBitmap>()
 
     fun getIconBitmapSync(orbitalBody: OrbitalBody): ImageBitmap? {
-        val planetDiameter = (orbitalBody.orbitalConfig.size * 2).toInt()
-        val cacheKey = "${orbitalBody.appInfo.packageName}_${planetDiameter}"
+        // Use a standard size for caching - will be scaled during rendering
+        val standardSize = 64 // Standard icon size for better quality
+        val cacheKey = "${orbitalBody.appInfo.packageName}_${standardSize}"
         return cache[cacheKey]
     }
 
     suspend fun getIconBitmap(orbitalBody: OrbitalBody): ImageBitmap? {
-        val planetDiameter = (orbitalBody.orbitalConfig.size * 2).toInt()
-        val cacheKey = "${orbitalBody.appInfo.packageName}_${planetDiameter}"
+        // Use a standard size for caching - will be scaled during rendering
+        val standardSize = 64 // Standard icon size for better quality
+        val cacheKey = "${orbitalBody.appInfo.packageName}_${standardSize}"
 
         return cache[cacheKey] ?: run {
-            val bitmap = convertDrawableToBitmap(orbitalBody.appInfo.icon, planetDiameter)
+            val bitmap = convertDrawableToBitmap(orbitalBody.appInfo.icon, standardSize)
             if (bitmap != null) {
                 cache[cacheKey] = bitmap
             }

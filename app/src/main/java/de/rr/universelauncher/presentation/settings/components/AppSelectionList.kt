@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Image
 import androidx.core.graphics.createBitmap
 import de.rr.universelauncher.domain.model.AppInfo
+import de.rr.universelauncher.presentation.settings.components.AppSettingsDialog
+import de.rr.universelauncher.domain.model.PlanetSize
 
 @Composable
 fun AppSelectionList(
@@ -37,6 +39,7 @@ fun AppSelectionList(
     onMoveUp: (String) -> Unit,
     onMoveDown: (String) -> Unit,
     onSetPosition: (String, Int) -> Unit,
+    onAppSettings: (AppInfo) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isMaxSelected = selectedApps.size >= 6
@@ -101,7 +104,8 @@ fun AppSelectionList(
                     onToggle = { onToggleApp(app.packageName) },
                     onMoveUp = { onMoveUp(app.packageName) },
                     onMoveDown = { onMoveDown(app.packageName) },
-                    onSetPosition = { newPos -> onSetPosition(app.packageName, newPos) }
+                    onSetPosition = { newPos -> onSetPosition(app.packageName, newPos) },
+                    onSettings = { onAppSettings(app) }
                 )
             }
         }
@@ -118,7 +122,8 @@ private fun AppSelectionItem(
     onToggle: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
-    onSetPosition: (Int) -> Unit
+    onSetPosition: (Int) -> Unit,
+    onSettings: () -> Unit
 ) {
     var positionInput by remember(position) { mutableStateOf(if (position > 0) position.toString() else "") }
 
@@ -240,9 +245,39 @@ private fun AppSelectionItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (isSelected) {
+                Row(
+                    modifier = Modifier.padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Launches: ${app.launchCount}",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 10.sp
+                    )
+                    Text(
+                        text = "Speed: ${(app.customOrbitSpeed ?: 30f).toInt()}s",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 10.sp
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.width(8.dp))
+
+        if (isSelected) {
+            IconButton(
+                onClick = onSettings,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Text(
+                    text = "⚙",
+                    color = Color.White,
+                    fontSize = 16.sp
+                )
+            }
+        }
 
         Checkbox(
             checked = isSelected,

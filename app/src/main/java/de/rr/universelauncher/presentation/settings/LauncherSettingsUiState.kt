@@ -8,11 +8,5 @@ data class LauncherSettingsUiState(
     val appOrder: Map<String, Int> = emptyMap(),
     val searchQuery: String = "",
     val isLoading: Boolean = true,
-    val error: String? = null,
-    val currentTab: SettingsTab = SettingsTab.APP_SELECTION
+    val error: String? = null
 )
-
-enum class SettingsTab {
-    APP_SELECTION,
-    STATISTICS
-}

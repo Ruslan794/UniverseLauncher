@@ -7,4 +7,5 @@ object AppSettings {
     val APP_LAUNCH_COUNT = stringSetPreferencesKey("app_launch_counts")
     val APP_ORDER = stringSetPreferencesKey("app_order")
     val APP_ORBIT_SPEEDS = stringSetPreferencesKey("app_orbit_speeds")
+    val APP_PLANET_SIZES = stringSetPreferencesKey("app_planet_sizes")
 }

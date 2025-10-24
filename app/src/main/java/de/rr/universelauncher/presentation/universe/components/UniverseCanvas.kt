@@ -68,7 +68,7 @@ fun UniverseCanvas(
                             val planetCenter = Offset(screenX, screenY)
 
                             val distance = (offset - planetCenter).getDistance()
-                            val planetRadius = orbitalBody.orbitalConfig.size
+                            val planetRadius = 20f // Default radius for tap detection
 
                             if (distance <= planetRadius * 1.2f) {
                                 onPlanetTapped(orbitalBody, planetCenter, planetRadius)
@@ -99,7 +99,8 @@ fun UniverseCanvas(
             animationTime = currentAnimationTime,
             center = currentCenter,
             iconCache = iconCache,
-            orbitPathCache = orbitPathCache
+            orbitPathCache = orbitPathCache,
+            canvasSize = currentCanvasSize
         )
     }
 }

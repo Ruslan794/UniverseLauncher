@@ -198,10 +198,6 @@ class LauncherSettingsViewModel @Inject constructor(
         return _uiState.value.allApps.filter { it.packageName in selectedPackages }
     }
 
-    fun setCurrentTab(tab: SettingsTab) {
-        _uiState.update { it.copy(currentTab = tab) }
-    }
-
     fun getTopUsedApps(): List<AppInfo> {
         return _uiState.value.allApps
             .sortedByDescending { it.launchCount }
@@ -215,6 +211,18 @@ class LauncherSettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Failed to set orbit speed")
+                }
+            }
+        }
+    }
+
+    fun setAppPlanetSize(packageName: String, size: String) {
+        viewModelScope.launch {
+            try {
+                launcherSettingsRepository.setAppPlanetSize(packageName, size)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to set planet size")
                 }
             }
         }

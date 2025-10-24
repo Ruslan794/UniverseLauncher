@@ -143,6 +143,20 @@ class UniverseViewModel @Inject constructor(
                     reloadUniverse()
                 }
         }
+        
+        viewModelScope.launch {
+            // Observe planet size changes and reload universe
+            launcherSettingsRepository.getAppPlanetSizes()
+                .catch { e ->
+                    _uiState.update {
+                        it.copy(error = e.message ?: "Failed to observe planet size changes")
+                    }
+                }
+                .collect { planetSizes ->
+                    // Reload apps when planet sizes change
+                    reloadUniverse()
+                }
+        }
     }
 
     private suspend fun loadAppsWithSelectedApps(selectedApps: Set<String>) {
