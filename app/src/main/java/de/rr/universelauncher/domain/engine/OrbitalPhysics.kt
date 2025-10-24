@@ -73,8 +73,12 @@ object OrbitalPhysics {
 
         val planetSizes = PlanetSizeCalculator.calculatePlanetSizes(selectedApps)
 
-        val orbitalBodies = selectedApps.mapIndexed { index, app ->
-            val orbitDuration = 10f + (index * 1.5f)
+        val sortedApps = selectedApps.sortedByDescending {
+            planetSizes[it.packageName] ?: PlanetSizeCalculator.getMinPlanetSize()
+        }
+
+        val orbitalBodies = sortedApps.mapIndexed { index, app ->
+            val orbitDuration = 15f + (index * 3f)
             val size = planetSizes[app.packageName] ?: PlanetSizeCalculator.getMinPlanetSize()
             val startAngle = (index * 36f) % 360f
             val color = planetColors[index % planetColors.size]

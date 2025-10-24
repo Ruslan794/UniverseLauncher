@@ -6,30 +6,22 @@ import androidx.compose.ui.geometry.Size
 object OrbitalDistanceCalculator {
 
     fun distributeOrbitsInCanvas(orbitalSystem: OrbitalSystem, canvasSize: Size): OrbitalSystem {
-        val star = orbitalSystem.star
-        val orbitalBodies = orbitalSystem.orbitalBodies
-
-        if (orbitalBodies.isEmpty()) {
+        if (orbitalSystem.orbitalBodies.isEmpty()) {
             return orbitalSystem
         }
 
         val layouts = OrbitLayoutCalculator.calculateOrbitLayouts(
-            star = star,
-            orbitalBodies = orbitalBodies,
+            star = orbitalSystem.star,
+            orbitalBodies = orbitalSystem.orbitalBodies,
             canvasSize = canvasSize
         )
 
-        if (layouts.size != orbitalBodies.size) {
-            return orbitalSystem
-        }
-
-        val updatedBodies = orbitalBodies.mapIndexed { index, orbitalBody ->
-            val layout = layouts[index]
+        val updatedBodies = orbitalSystem.orbitalBodies.mapIndexed { index, orbitalBody ->
+            val layout = layouts.getOrNull(index) ?: return@mapIndexed orbitalBody
 
             orbitalBody.copy(
                 orbitalConfig = orbitalBody.orbitalConfig.copy(
                     distance = layout.orbitDistance
-                    // Keep original size, don't overwrite it
                 )
             )
         }

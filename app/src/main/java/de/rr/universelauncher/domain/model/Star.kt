@@ -8,9 +8,8 @@ data class Star(
     val deadZone: Float
 )
 
-
 val defaultStar = Star(
     radius = 40f,
     color = Color(0xFFFFD700),
-    deadZone = 20f
+    deadZone = 40f
 )

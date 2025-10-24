@@ -29,14 +29,18 @@ class UniverseViewModel @Inject constructor(
     private val launcherSettingsRepository: LauncherSettingsRepository
 ) : ViewModel() {
 
-
-    private val _uiState = MutableStateFlow(UniverseUiState(
-        orbitalSystem = emptyOrbitalSystemWithDefaultStar,
-        isLoading = true,
-        error = null,
-        showSettings = false
-    ))
+    private val _uiState = MutableStateFlow(
+        UniverseUiState(
+            orbitalSystem = emptyOrbitalSystemWithDefaultStar,
+            isLoading = true,
+            error = null,
+            showSettings = false
+        )
+    )
     val uiState: StateFlow<UniverseUiState> = _uiState.asStateFlow()
+
+    private var currentCanvasSize: androidx.compose.ui.geometry.Size =
+        androidx.compose.ui.geometry.Size(1080f, 2400f)
 
     init {
         loadApps()
@@ -47,14 +51,10 @@ class UniverseViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _uiState.update { it.copy(isLoading = true, error = null) }
-                
-                // Get all apps with launch counts
+
                 val allApps = appRepository.getInstalledAppsWithLaunchCounts()
-                
-                // Get selected apps from settings
                 val selectedApps = launcherSettingsRepository.getSelectedApps().first()
-                
-                // If no apps are selected, initialize with top 10 most used apps
+
                 val finalSelectedApps = if (selectedApps.isEmpty()) {
                     val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
                     val topAppPackages = topApps.map { it.packageName }.toSet()
@@ -63,14 +63,18 @@ class UniverseViewModel @Inject constructor(
                 } else {
                     selectedApps
                 }
-                
-                // Filter apps to show only selected ones
+
                 val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
 
                 val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps)
+                val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
+                    orbitalSystem,
+                    currentCanvasSize
+                )
+
                 _uiState.update {
                     it.copy(
-                        orbitalSystem = orbitalSystem,
+                        orbitalSystem = distributedSystem,
                         isLoading = false
                     )
                 }
@@ -84,7 +88,6 @@ class UniverseViewModel @Inject constructor(
         }
     }
 
-
     fun onPlanetTapped(orbitalBody: OrbitalBody, planetPosition: Offset, planetSize: Float) {
         viewModelScope.launch {
             try {
@@ -97,6 +100,7 @@ class UniverseViewModel @Inject constructor(
             }
         }
     }
+
 
     fun onStarTapped() {
         _uiState.update {
@@ -130,10 +134,14 @@ class UniverseViewModel @Inject constructor(
             val allApps = appRepository.getInstalledAppsWithLaunchCounts()
             val filteredApps = allApps.filter { it.packageName in selectedApps }
             val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps)
-            
+            val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
+                orbitalSystem,
+                currentCanvasSize
+            )
+
             _uiState.update {
                 it.copy(
-                    orbitalSystem = orbitalSystem,
+                    orbitalSystem = distributedSystem,
                     isLoading = false,
                     error = null
                 )
@@ -149,26 +157,17 @@ class UniverseViewModel @Inject constructor(
     }
 
     fun updateCanvasSize(canvasSize: androidx.compose.ui.geometry.Size) {
+        if (canvasSize.width <= 0 || canvasSize.height <= 0) return
+
+        currentCanvasSize = canvasSize
+
         viewModelScope.launch {
             try {
-                // Reload apps with current launch counts and recalculate everything
-                val allApps = appRepository.getInstalledAppsWithLaunchCounts()
-                val selectedApps = launcherSettingsRepository.getSelectedApps().first()
-                
-                val finalSelectedApps = if (selectedApps.isEmpty()) {
-                    val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
-                    val topAppPackages = topApps.map { it.packageName }.toSet()
-                    launcherSettingsRepository.setSelectedApps(topAppPackages)
-                    topAppPackages
-                } else {
-                    selectedApps
-                }
-                
-                val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
-                val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps)
-                
-                // Redistribute orbits with new canvas size
-                val updatedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(orbitalSystem, canvasSize)
+                val currentSystem = _uiState.value.orbitalSystem
+                val updatedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
+                    currentSystem,
+                    canvasSize
+                )
 
                 _uiState.update {
                     it.copy(orbitalSystem = updatedSystem)
@@ -178,7 +177,6 @@ class UniverseViewModel @Inject constructor(
             }
         }
     }
-
 
 
     override fun onCleared() {
