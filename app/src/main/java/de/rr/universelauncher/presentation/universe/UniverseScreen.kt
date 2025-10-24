@@ -51,27 +51,27 @@ fun UniverseScreen(
                 }
             }
 
-            uiState.orbitalSystem != null -> {
+            else -> {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)
                 ) {
                     UniverseCanvas(
-                        orbitalSystem = uiState.orbitalSystem!!,
-                        animationTime = uiState.animationTime,
+                        orbitalSystem = uiState.orbitalSystem,
                         onPlanetTapped = viewModel::onPlanetTapped,
-                        modifier = Modifier.weight(0.7f)
+                        modifier = Modifier.weight(0.9f)
                     )
 
                     AppList(
                         apps = uiState.allApps,
                         selectedApp = uiState.selectedAppInfo,
                         onClick = viewModel::incrementSelectedPlanetSize,
-                        modifier = Modifier.weight(0.3f)
+                        modifier = Modifier.weight(0.1f)
                     )
                 }
             }
+
         }
 
         if (uiState.showAppDialog && uiState.selectedOrbitalBody != null) {

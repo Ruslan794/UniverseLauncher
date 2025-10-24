@@ -5,13 +5,12 @@ import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
 
 data class UniverseUiState(
-    val orbitalSystem: OrbitalSystem? = null,
-    val allApps: List<AppInfo> = emptyList(),
-    val isLoading: Boolean = true,
-    val error: String? = null,
-    val selectedOrbitalBody: OrbitalBody? = null,
-    val showAppDialog: Boolean = false,
-    val animationTime: Float = 0f,
-    val selectedAppInfo: AppInfo? = null,
-    val selectedPlanetIndex: Int? = null
+    val orbitalSystem: OrbitalSystem,
+    val allApps: List<AppInfo>,
+    val isLoading: Boolean,
+    val error: String?,
+    val selectedOrbitalBody: OrbitalBody?,
+    val showAppDialog: Boolean,
+    val selectedAppInfo: AppInfo?,
+    val selectedPlanetIndex: Int?
 )

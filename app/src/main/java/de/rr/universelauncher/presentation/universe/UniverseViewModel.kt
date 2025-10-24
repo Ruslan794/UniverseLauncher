@@ -9,6 +9,7 @@ import de.rr.universelauncher.domain.engine.OrbitalDistanceCalculator
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
 import de.rr.universelauncher.domain.model.AppInfo
+import de.rr.universelauncher.domain.model.emptyOrbitalSystemWithDefaultStar
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,14 +25,20 @@ class UniverseViewModel @Inject constructor(
     private val appRepository: AppRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(UniverseUiState())
+    private val _uiState = MutableStateFlow(UniverseUiState(
+        orbitalSystem = emptyOrbitalSystemWithDefaultStar,
+        allApps = emptyList(),
+        isLoading = true,
+        error = null,
+        selectedOrbitalBody = null,
+        showAppDialog = false,
+        selectedAppInfo = null,
+        selectedPlanetIndex = null
+    ))
     val uiState: StateFlow<UniverseUiState> = _uiState.asStateFlow()
-
-    private var animationJob: Job? = null
 
     init {
         loadApps()
-        startAnimation()
     }
 
     private fun loadApps() {
@@ -39,10 +46,11 @@ class UniverseViewModel @Inject constructor(
             try {
                 _uiState.update { it.copy(isLoading = true, error = null) }
                 val apps = appRepository.getInstalledApps()
-                val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(apps)
+
+                val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(apps.take(5))
                 _uiState.update {
                     it.copy(
-                        orbitalSystem = orbitalSystem, 
+                        orbitalSystem = orbitalSystem,
                         allApps = apps,
                         isLoading = false
                     )
@@ -57,16 +65,6 @@ class UniverseViewModel @Inject constructor(
         }
     }
 
-    private fun startAnimation() {
-        animationJob = viewModelScope.launch {
-            while (true) {
-                delay(16) // ~60fps
-                _uiState.update {
-                    it.copy(animationTime = it.animationTime + 0.016f)
-                }
-            }
-        }
-    }
 
     fun onPlanetTapped(orbitalBody: OrbitalBody) {
         val currentSystem = _uiState.value.orbitalSystem
@@ -117,7 +115,7 @@ class UniverseViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        animationJob?.cancel()
+        // No animation job to cancel anymore
     }
 
 }

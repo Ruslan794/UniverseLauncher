@@ -10,6 +10,21 @@ import kotlin.math.*
 
 object OrbitalPhysics {
 
+    private val colors = listOf(
+        Color(0xFF8C7853),
+        Color(0xFFFFC649),
+        Color(0xFF6B93D6),
+        Color(0xFFCD5C5C),
+        Color(0xFFD8CA9D),
+        Color(0xFFFAD5A5),
+        Color(0xFF4FD0E7),
+        Color(0xFF4B70DD),
+        Color(0xFF9C27B0),
+        Color(0xFF4CAF50),
+        Color(0xFFFF9800),
+        Color(0xFFE91E63)
+    )
+
     fun calculateOrbitalBodyPosition(
         orbitalBody: OrbitalBody,
         timeSeconds: Float
@@ -49,22 +64,31 @@ object OrbitalPhysics {
 
         return points
     }
-    
-    fun createSampleSolarSystem(): OrbitalSystem {
-        val sun = Star(
-            mass = 1.0,
-            radius = 20f,
-            color = Color(0xFFFFD700)
-        )
-        
-        val orbitalBodies = emptyList<OrbitalBody>()
-        
-        return OrbitalSystem(sun, orbitalBodies)
+
+    fun createOrbitalBodiesFromApps(apps: List<AppInfo>): List<OrbitalBody> {
+        return apps.take(12).mapIndexed { index, app ->
+            val distance = 80f + (index * 30f) // Initial distances (will be recalculated)
+            val orbitDuration = 8f + (index * 2f) // Different speeds
+            val size = 20f + (index % 3) * 10f
+            val startAngle = (index * 30f) % 360f // Staggered starting positions
+            val color = colors[index % colors.size]
+
+            val orbitalConfig = OrbitalConfig(
+                distance = distance,
+                orbitDuration = orbitDuration,
+                size = size,
+                startAngle = startAngle,
+                color = color,
+                ellipseRatio = 1.5f
+            )
+
+            OrbitalBody(app, orbitalConfig)
+        }
     }
+
     
     fun createOrbitalSystemFromApps(apps: List<AppInfo>): OrbitalSystem {
         val sun = Star(
-            mass = 1.0,
             radius = 20f,
             color = Color(0xFFFFD700)
         )
@@ -87,7 +111,7 @@ object OrbitalPhysics {
         val orbitalBodies = apps.take(12).mapIndexed { index, app ->
             val distance = 80f + (index * 30f) // Initial distances (will be recalculated)
             val orbitDuration = 8f + (index * 2f) // Different speeds
-            val size = 6f + (index % 3) * 2f // Varying sizes
+            val size = 20f + (index % 3) * 10f
             val startAngle = (index * 30f) % 360f // Staggered starting positions
             val color = colors[index % colors.size]
 
