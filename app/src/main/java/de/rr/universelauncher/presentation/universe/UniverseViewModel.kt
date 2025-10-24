@@ -39,7 +39,11 @@ class UniverseViewModel @Inject constructor(
                 val apps = appRepository.getInstalledApps()
                 val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(apps)
                 _uiState.update {
-                    it.copy(orbitalSystem = orbitalSystem, isLoading = false)
+                    it.copy(
+                        orbitalSystem = orbitalSystem, 
+                        allApps = apps,
+                        isLoading = false
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -84,6 +88,10 @@ class UniverseViewModel @Inject constructor(
                 selectedOrbitalBody = null, showAppDialog = false
             )
         }
+    }
+
+    fun onAppFromListClicked(appInfo: de.rr.universelauncher.domain.model.AppInfo) {
+        appRepository.launchApp(appInfo.packageName)
     }
 
     override fun onCleared() {
