@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.rr.universelauncher.domain.repository.AppRepository
 import de.rr.universelauncher.domain.engine.OrbitalPhysics
+import de.rr.universelauncher.domain.engine.OrbitalDistanceCalculator
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
+import de.rr.universelauncher.domain.model.AppInfo
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,10 +69,33 @@ class UniverseViewModel @Inject constructor(
     }
 
     fun onPlanetTapped(orbitalBody: OrbitalBody) {
+        val currentSystem = _uiState.value.orbitalSystem
+        val planetIndex = currentSystem?.orbitalBodies?.indexOf(orbitalBody) ?: -1
+
         _uiState.update {
             it.copy(
-                selectedOrbitalBody = orbitalBody, showAppDialog = true
+                selectedOrbitalBody = orbitalBody,
+                showAppDialog = true,
+                selectedAppInfo = orbitalBody.appInfo,
+                selectedPlanetIndex = planetIndex
             )
+        }
+    }
+
+    fun incrementSelectedPlanetSize() {
+        val currentSystem = _uiState.value.orbitalSystem
+        val planetIndex = _uiState.value.selectedPlanetIndex
+
+        if (currentSystem != null && planetIndex != null && planetIndex >= 0) {
+            val currentPlanet = currentSystem.orbitalBodies[planetIndex]
+            val newSize = currentPlanet.orbitalConfig.size + 5f
+
+            val updatedSystem = OrbitalDistanceCalculator.updatePlanetSizeAndRecalculate(
+                currentSystem, planetIndex, newSize
+            )
+            _uiState.update {
+                it.copy(orbitalSystem = updatedSystem)
+            }
         }
     }
 
@@ -88,10 +113,6 @@ class UniverseViewModel @Inject constructor(
                 selectedOrbitalBody = null, showAppDialog = false
             )
         }
-    }
-
-    fun onAppFromListClicked(appInfo: de.rr.universelauncher.domain.model.AppInfo) {
-        appRepository.launchApp(appInfo.packageName)
     }
 
     override fun onCleared() {

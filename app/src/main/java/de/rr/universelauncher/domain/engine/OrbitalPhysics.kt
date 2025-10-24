@@ -9,38 +9,44 @@ import de.rr.universelauncher.domain.model.AppInfo
 import kotlin.math.*
 
 object OrbitalPhysics {
-    
+
     fun calculateOrbitalBodyPosition(
         orbitalBody: OrbitalBody,
         timeSeconds: Float
     ): Pair<Float, Float> {
         val config = orbitalBody.orbitalConfig
-        
+
         val angle = (timeSeconds / config.orbitDuration) * 2 * PI + Math.toRadians(config.startAngle.toDouble())
-        
-        val x = config.distance * cos(angle).toFloat()
-        val y = config.distance * sin(angle).toFloat()
-        
+
+        val radiusX = config.distance * config.ellipseRatio
+        val radiusY = config.distance
+
+        val x = radiusX * cos(angle).toFloat()
+        val y = radiusY * sin(angle).toFloat()
+
         return Pair(x, y)
     }
-    
+
     fun calculateOrbitPathPoints(
         orbitalBody: OrbitalBody,
         numPoints: Int = 100
     ): List<Pair<Float, Float>> {
         val config = orbitalBody.orbitalConfig
         val points = mutableListOf<Pair<Float, Float>>()
-        
+
+        val radiusX = config.distance * config.ellipseRatio
+        val radiusY = config.distance
+
         for (i in 0 until numPoints) {
             val timeRatio = i.toFloat() / numPoints
             val angle = timeRatio * 2 * PI + Math.toRadians(config.startAngle.toDouble())
-            
-            val x = config.distance * cos(angle).toFloat()
-            val y = config.distance * sin(angle).toFloat()
-            
+
+            val x = radiusX * cos(angle).toFloat()
+            val y = radiusY * sin(angle).toFloat()
+
             points.add(Pair(x, y))
         }
-        
+
         return points
     }
     
@@ -79,23 +85,26 @@ object OrbitalPhysics {
         )
         
         val orbitalBodies = apps.take(12).mapIndexed { index, app ->
-            val distance = 80f + (index * 30f) // Increasing distances
+            val distance = 80f + (index * 30f) // Initial distances (will be recalculated)
             val orbitDuration = 8f + (index * 2f) // Different speeds
             val size = 6f + (index % 3) * 2f // Varying sizes
             val startAngle = (index * 30f) % 360f // Staggered starting positions
             val color = colors[index % colors.size]
-            
+
             val orbitalConfig = OrbitalConfig(
                 distance = distance,
                 orbitDuration = orbitDuration,
                 size = size,
                 startAngle = startAngle,
-                color = color
+                color = color,
+                ellipseRatio = 1.5f
             )
             
             OrbitalBody(app, orbitalConfig)
         }
         
-        return OrbitalSystem(sun, orbitalBodies)
+        val initialSystem = OrbitalSystem(sun, orbitalBodies)
+        // Recalculate distances to prevent overlaps
+        return OrbitalDistanceCalculator.recalculateOrbitalDistances(initialSystem)
     }
 }

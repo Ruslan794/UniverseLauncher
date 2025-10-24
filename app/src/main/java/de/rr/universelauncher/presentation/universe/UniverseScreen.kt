@@ -66,7 +66,8 @@ fun UniverseScreen(
 
                     AppList(
                         apps = uiState.allApps,
-                        onAppClicked = viewModel::onAppFromListClicked,
+                        selectedApp = uiState.selectedAppInfo,
+                        onClick = viewModel::incrementSelectedPlanetSize,
                         modifier = Modifier.weight(0.3f)
                     )
                 }

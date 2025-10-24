@@ -11,5 +11,7 @@ data class UniverseUiState(
     val error: String? = null,
     val selectedOrbitalBody: OrbitalBody? = null,
     val showAppDialog: Boolean = false,
-    val animationTime: Float = 0f
+    val animationTime: Float = 0f,
+    val selectedAppInfo: AppInfo? = null,
+    val selectedPlanetIndex: Int? = null
 )

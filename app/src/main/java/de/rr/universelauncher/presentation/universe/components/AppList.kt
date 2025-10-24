@@ -1,5 +1,6 @@
 package de.rr.universelauncher.presentation.universe.components
 
+import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,10 +29,11 @@ import androidx.core.graphics.createBitmap
 @Composable
 fun AppList(
     apps: List<AppInfo>,
-    onAppClicked: (AppInfo) -> Unit,
+    selectedApp: AppInfo?,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxHeight()
             .background(
@@ -38,11 +42,43 @@ fun AppList(
             )
             .padding(8.dp)
     ) {
-        items(apps) { app ->
-            AppListItem(
-                app = app,
-                onClick = { onAppClicked(app) }
+        Column(
+            modifier = modifier
+                .background(
+                    Color.White.copy(alpha = 0.1f),
+                    RoundedCornerShape(4.dp)
+                )
+                .padding(8.dp)
+        ) {
+
+            Text(
+                text = selectedApp?.appName ?: "No app selected",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Increase")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyColumn(
+            modifier = Modifier.weight(1f)
+        ) {
+            items(apps) { app ->
+                AppListItem(
+                    app = app,
+                )
+            }
         }
     }
 }
@@ -50,12 +86,11 @@ fun AppList(
 @Composable
 private fun AppListItem(
     app: AppInfo,
-    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clickable {}
             .padding(vertical = 4.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -66,9 +101,9 @@ private fun AppListItem(
                 .size(32.dp)
                 .clip(CircleShape)
         )
-        
+
         Spacer(modifier = Modifier.width(8.dp))
-        
+
         Column(
             modifier = Modifier.weight(1f)
         ) {
@@ -92,7 +127,7 @@ private fun AppListItem(
 }
 
 @Composable
-private fun rememberDrawablePainter(drawable: android.graphics.drawable.Drawable): androidx.compose.ui.graphics.painter.Painter {
+private fun rememberDrawablePainter(drawable: Drawable): Painter {
     return remember(drawable) {
         val bitmap = createBitmap(64, 64)
         val canvas = android.graphics.Canvas(bitmap)
