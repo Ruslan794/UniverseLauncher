@@ -1,4 +1,4 @@
-package de.rr.universelauncher.core.ui.theme
+package de.rr.universelauncher.presentation.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
@@ -15,4 +15,3 @@ val Typography = Typography(
         letterSpacing = 0.5.sp
     )
 )
-

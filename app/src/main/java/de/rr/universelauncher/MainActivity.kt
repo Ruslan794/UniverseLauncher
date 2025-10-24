@@ -11,8 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import dagger.hilt.android.AndroidEntryPoint
-import de.rr.universelauncher.feature.orbit.presentation.UniverseScreen
-import de.rr.universelauncher.core.ui.theme.UniverseLauncherTheme
+import de.rr.universelauncher.presentation.universe.UniverseScreen
+import de.rr.universelauncher.presentation.theme.UniverseLauncherTheme
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {

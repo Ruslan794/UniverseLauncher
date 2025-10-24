@@ -1,11 +1,11 @@
-package de.rr.universelauncher.core.physics.domain.engine
+package de.rr.universelauncher.domain.engine
 
 import androidx.compose.ui.graphics.Color
-import de.rr.universelauncher.core.physics.domain.model.OrbitalSystem
-import de.rr.universelauncher.core.physics.domain.model.OrbitalBody
-import de.rr.universelauncher.core.physics.domain.model.OrbitalConfig
-import de.rr.universelauncher.core.physics.domain.model.Star
-import de.rr.universelauncher.core.launcher.domain.model.AppInfo
+import de.rr.universelauncher.domain.model.OrbitalSystem
+import de.rr.universelauncher.domain.model.OrbitalBody
+import de.rr.universelauncher.domain.model.OrbitalConfig
+import de.rr.universelauncher.domain.model.Star
+import de.rr.universelauncher.domain.model.AppInfo
 import kotlin.math.*
 
 object OrbitalPhysics {
@@ -46,7 +46,6 @@ object OrbitalPhysics {
     
     fun createSampleSolarSystem(): OrbitalSystem {
         val sun = Star(
-            name = "Sun",
             mass = 1.0,
             radius = 20f,
             color = Color(0xFFFFD700)
@@ -59,7 +58,6 @@ object OrbitalPhysics {
     
     fun createOrbitalSystemFromApps(apps: List<AppInfo>): OrbitalSystem {
         val sun = Star(
-            name = "Sun",
             mass = 1.0,
             radius = 20f,
             color = Color(0xFFFFD700)

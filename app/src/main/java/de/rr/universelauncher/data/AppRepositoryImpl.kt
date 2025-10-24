@@ -1,17 +1,17 @@
-package de.rr.universelauncher.core.launcher.data
+package de.rr.universelauncher.data
 
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import dagger.hilt.android.qualifiers.ApplicationContext
-import de.rr.universelauncher.core.launcher.domain.model.AppInfo
-import de.rr.universelauncher.core.launcher.domain.repository.AppRepository
+import de.rr.universelauncher.domain.model.AppInfo
+import de.rr.universelauncher.domain.repository.AppRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-class AndroidAppRepository @Inject constructor(
+class AppRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : AppRepository {
     
@@ -47,7 +47,6 @@ class AndroidAppRepository @Inject constructor(
                 context.startActivity(it)
             }
         } catch (e: Exception) {
-            // Handle launch error
         }
     }
 }

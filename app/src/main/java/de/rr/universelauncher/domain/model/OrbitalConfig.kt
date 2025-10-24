@@ -1,4 +1,4 @@
-package de.rr.universelauncher.core.physics.domain.model
+package de.rr.universelauncher.domain.model
 
 import androidx.compose.ui.graphics.Color
 

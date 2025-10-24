@@ -1,4 +1,4 @@
-package de.rr.universelauncher.core.ui.theme
+package de.rr.universelauncher.presentation.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -18,4 +18,3 @@ fun UniverseLauncherTheme(
         content = content
     )
 }
-

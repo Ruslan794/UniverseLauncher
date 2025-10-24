@@ -1,4 +1,4 @@
-package de.rr.universelauncher.core.ui.theme
+package de.rr.universelauncher.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
@@ -12,4 +12,3 @@ val PlanetJupiter = Color(0xFFD8CA9D)
 val PlanetSaturn = Color(0xFFFAD5A5)
 val PlanetUranus = Color(0xFF4FD0E7)
 val PlanetNeptune = Color(0xFF4B70DD)
-
