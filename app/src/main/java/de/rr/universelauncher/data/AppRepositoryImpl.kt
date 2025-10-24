@@ -9,11 +9,14 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.rr.universelauncher.domain.model.AppInfo
 import de.rr.universelauncher.domain.repository.AppRepository
+import de.rr.universelauncher.domain.repository.LauncherSettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 class AppRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val launcherSettingsRepository: LauncherSettingsRepository
 ) : AppRepository {
 
     override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
@@ -50,6 +53,15 @@ class AppRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getInstalledAppsWithLaunchCounts(): List<AppInfo> = withContext(Dispatchers.IO) {
+        val apps = getInstalledApps()
+        val launchCounts = launcherSettingsRepository.getAppLaunchCounts().first()
+        
+        apps.map { app ->
+            app.copy(launchCount = launchCounts[app.packageName] ?: 0)
+        }
+    }
+
     override fun launchApp(packageName: String) {
         try {
             val intent = context.packageManager.getLaunchIntentForPackage(packageName)
@@ -60,5 +72,9 @@ class AppRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e("AppRepository", "Failed to launch app: $packageName", e)
         }
+    }
+
+    override suspend fun trackAppLaunch(packageName: String) {
+        launcherSettingsRepository.incrementAppLaunchCount(packageName)
     }
 }

@@ -46,7 +46,7 @@ object UniverseRenderer {
     ) {
         drawScope.drawCircle(
             color = star.color.copy(alpha = 0.3f),
-            radius = star.radius * 2,
+            radius = star.radius * 1.5f,
             center = center
         )
         

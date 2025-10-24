@@ -4,7 +4,6 @@ import androidx.compose.ui.graphics.Color
 import de.rr.universelauncher.domain.model.OrbitalSystem
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalConfig
-import de.rr.universelauncher.domain.model.Star
 import de.rr.universelauncher.domain.model.AppInfo
 import de.rr.universelauncher.domain.model.defaultStar
 import kotlin.math.*
@@ -68,11 +67,16 @@ object OrbitalPhysics {
 
     fun createOrbitalSystemFromApps(apps: List<AppInfo>): OrbitalSystem {
         val sun = defaultStar
-        
-        val orbitalBodies = apps.take(12).mapIndexed { index, app ->
-            val orbitDuration = 8f + (index * 2f)
-            val size = 20f + (index % 3) * 10f
-            val startAngle = (index * 30f) % 360f
+
+        val maxPlanets = minOf(apps.size, 10)
+        val selectedApps = apps.take(maxPlanets)
+
+        val planetSizes = PlanetSizeCalculator.calculatePlanetSizes(selectedApps)
+
+        val orbitalBodies = selectedApps.mapIndexed { index, app ->
+            val orbitDuration = 10f + (index * 1.5f)
+            val size = planetSizes[app.packageName] ?: PlanetSizeCalculator.getMinPlanetSize()
+            val startAngle = (index * 36f) % 360f
             val color = planetColors[index % planetColors.size]
 
             val orbitalConfig = OrbitalConfig(
@@ -81,12 +85,12 @@ object OrbitalPhysics {
                 size = size,
                 startAngle = startAngle,
                 color = color,
-                ellipseRatio = 1.5f
+                ellipseRatio = 1.2f
             )
-            
+
             OrbitalBody(app, orbitalConfig)
         }
-        
+
         val initialSystem = OrbitalSystem(sun, orbitalBodies)
         return OrbitalDistanceCalculator.recalculateOrbitalDistances(initialSystem)
     }

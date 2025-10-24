@@ -4,11 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.rr.universelauncher.domain.repository.AppRepository
+import de.rr.universelauncher.domain.repository.LauncherSettingsRepository
 import de.rr.universelauncher.domain.engine.OrbitalPhysics
 import de.rr.universelauncher.domain.engine.OrbitalDistanceCalculator
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
-import de.rr.universelauncher.domain.model.AppInfo
 import de.rr.universelauncher.domain.model.emptyOrbitalSystemWithDefaultStar
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -16,40 +16,59 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
 @HiltViewModel
 class UniverseViewModel @Inject constructor(
-    private val appRepository: AppRepository
+    private val appRepository: AppRepository,
+    private val launcherSettingsRepository: LauncherSettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UniverseUiState(
         orbitalSystem = emptyOrbitalSystemWithDefaultStar,
-        allApps = emptyList(),
         isLoading = true,
         error = null,
-        selectedOrbitalBody = null,
-        showAppDialog = false
+        showSettings = false
     ))
     val uiState: StateFlow<UniverseUiState> = _uiState.asStateFlow()
 
     init {
         loadApps()
+        observeSettingsChanges()
     }
 
     private fun loadApps() {
         viewModelScope.launch {
             try {
                 _uiState.update { it.copy(isLoading = true, error = null) }
-                val apps = appRepository.getInstalledApps()
+                
+                // Get all apps with launch counts
+                val allApps = appRepository.getInstalledAppsWithLaunchCounts()
+                
+                // Get selected apps from settings
+                val selectedApps = launcherSettingsRepository.getSelectedApps().first()
+                
+                // If no apps are selected, initialize with top 10 most used apps
+                val finalSelectedApps = if (selectedApps.isEmpty()) {
+                    val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
+                    val topAppPackages = topApps.map { it.packageName }.toSet()
+                    launcherSettingsRepository.setSelectedApps(topAppPackages)
+                    topAppPackages
+                } else {
+                    selectedApps
+                }
+                
+                // Filter apps to show only selected ones
+                val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
 
-                val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(apps.take(5))
+                val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps)
                 _uiState.update {
                     it.copy(
                         orbitalSystem = orbitalSystem,
-                        allApps = apps,
                         isLoading = false
                     )
                 }
@@ -65,80 +84,84 @@ class UniverseViewModel @Inject constructor(
 
 
     fun onPlanetTapped(orbitalBody: OrbitalBody) {
-        _uiState.update {
-            it.copy(
-                selectedOrbitalBody = orbitalBody,
-                showAppDialog = true
-            )
+        viewModelScope.launch {
+            try {
+                appRepository.trackAppLaunch(orbitalBody.appInfo.packageName)
+                appRepository.launchApp(orbitalBody.appInfo.packageName)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = "Failed to launch app: ${e.message}")
+                }
+            }
         }
     }
 
-    fun increasePlanetSize() {
-        val currentSystem = _uiState.value.orbitalSystem
-        val selectedBody = _uiState.value.selectedOrbitalBody
+    fun onStarTapped() {
+        _uiState.update {
+            it.copy(showSettings = true)
+        }
+    }
 
-        if (selectedBody != null) {
-            val planetIndex = currentSystem.orbitalBodies.indexOf(selectedBody)
-            if (planetIndex >= 0) {
-                val currentPlanet = currentSystem.orbitalBodies[planetIndex]
-                val newSize = currentPlanet.orbitalConfig.size + 5f
+    fun onCloseSettings() {
+        _uiState.update {
+            it.copy(showSettings = false)
+        }
+    }
 
-                val updatedSystem = OrbitalDistanceCalculator.updatePlanetSizeAndRecalculate(
-                    currentSystem, planetIndex, newSize
+    private fun observeSettingsChanges() {
+        viewModelScope.launch {
+            launcherSettingsRepository.getSelectedApps()
+                .catch { e ->
+                    _uiState.update {
+                        it.copy(error = e.message ?: "Failed to observe settings changes")
+                    }
+                }
+                .collect { selectedApps ->
+                    // Reload apps when selected apps change
+                    loadAppsWithSelectedApps(selectedApps)
+                }
+        }
+    }
+
+    private suspend fun loadAppsWithSelectedApps(selectedApps: Set<String>) {
+        try {
+            val allApps = appRepository.getInstalledAppsWithLaunchCounts()
+            val filteredApps = allApps.filter { it.packageName in selectedApps }
+            val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps)
+            
+            _uiState.update {
+                it.copy(
+                    orbitalSystem = orbitalSystem,
+                    isLoading = false,
+                    error = null
                 )
+            }
+        } catch (e: Exception) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = e.message ?: "Failed to load apps"
+                )
+            }
+        }
+    }
+
+    fun updateCanvasSize(canvasSize: androidx.compose.ui.geometry.Size) {
+        viewModelScope.launch {
+            try {
+                val currentSystem = _uiState.value.orbitalSystem
+                val updatedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(currentSystem, canvasSize)
                 
-                val updatedPlanet = updatedSystem.orbitalBodies[planetIndex]
                 _uiState.update {
-                    it.copy(
-                        orbitalSystem = updatedSystem,
-                        selectedOrbitalBody = updatedPlanet
-                    )
+                    it.copy(orbitalSystem = updatedSystem)
                 }
+            } catch (e: Exception) {
+                // Log error but don't break the app
+                android.util.Log.e("UniverseViewModel", "Failed to update canvas size", e)
             }
         }
     }
 
-    fun decreaseOrbitDuration() {
-        val currentSystem = _uiState.value.orbitalSystem
-        val selectedBody = _uiState.value.selectedOrbitalBody
-
-        if (selectedBody != null) {
-            val planetIndex = currentSystem.orbitalBodies.indexOf(selectedBody)
-            if (planetIndex >= 0) {
-                val currentPlanet = currentSystem.orbitalBodies[planetIndex]
-                val newDuration = (currentPlanet.orbitalConfig.orbitDuration - 1f).coerceAtLeast(2f)
-
-                val updatedConfig = currentPlanet.orbitalConfig.copy(orbitDuration = newDuration)
-                val updatedPlanet = currentPlanet.copy(orbitalConfig = updatedConfig)
-                val updatedBodies = currentSystem.orbitalBodies.toMutableList()
-                updatedBodies[planetIndex] = updatedPlanet
-
-                val updatedSystem = OrbitalSystem(currentSystem.star, updatedBodies)
-                _uiState.update {
-                    it.copy(
-                        orbitalSystem = updatedSystem,
-                        selectedOrbitalBody = updatedPlanet
-                    )
-                }
-            }
-        }
-    }
-
-    fun onLaunchApp() {
-        val selectedBody = _uiState.value.selectedOrbitalBody
-        if (selectedBody != null) {
-            appRepository.launchApp(selectedBody.appInfo.packageName)
-            onDismissDialog()
-        }
-    }
-
-    fun onDismissDialog() {
-        _uiState.update {
-            it.copy(
-                showAppDialog = false
-            )
-        }
-    }
 
     override fun onCleared() {
         super.onCleared()

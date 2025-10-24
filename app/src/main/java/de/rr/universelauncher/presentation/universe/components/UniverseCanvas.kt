@@ -18,6 +18,8 @@ import kotlinx.coroutines.delay
 fun UniverseCanvas(
     orbitalSystem: OrbitalSystem,
     onPlanetTapped: (OrbitalBody) -> Unit,
+    onStarTapped: () -> Unit,
+    onCanvasSizeChanged: (androidx.compose.ui.geometry.Size) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val iconCache = rememberIconCache(orbitalSystem)
@@ -28,6 +30,7 @@ fun UniverseCanvas(
     
     var currentAnimationTime by remember { mutableStateOf(0f) }
     var center by remember { mutableStateOf(Offset.Zero) }
+    var lastCanvasSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     
     LaunchedEffect(Unit) {
         while (true) {
@@ -46,7 +49,16 @@ fun UniverseCanvas(
                     onTap = { offset ->
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
+                        val center = Offset(centerX, centerY)
 
+                        // Check if tap is on star (center)
+                        val distanceFromCenter = (offset - center).getDistance()
+                        if (distanceFromCenter <= orbitalSystem.star.radius * 2) {
+                            onStarTapped()
+                            return@detectTapGestures
+                        }
+
+                        // Check if tap is on any planet
                         orbitalSystem.orbitalBodies.forEach { orbitalBody ->
                             val position = OrbitalPhysics.calculateOrbitalBodyPosition(
                                 orbitalBody = orbitalBody,
@@ -72,6 +84,13 @@ fun UniverseCanvas(
         
         if (center != currentCenter) {
             center = currentCenter
+        }
+        
+        // Only notify about canvas size changes when size actually changes
+        val currentCanvasSize = androidx.compose.ui.geometry.Size(size.width, size.height)
+        if (lastCanvasSize != currentCanvasSize) {
+            lastCanvasSize = currentCanvasSize
+            onCanvasSizeChanged(currentCanvasSize)
         }
         
         UniverseRenderer.drawUniverse(
