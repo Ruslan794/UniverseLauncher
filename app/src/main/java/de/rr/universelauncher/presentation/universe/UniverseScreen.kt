@@ -60,14 +60,16 @@ fun UniverseScreen(
                     UniverseCanvas(
                         orbitalSystem = uiState.orbitalSystem,
                         onPlanetTapped = viewModel::onPlanetTapped,
-                        modifier = Modifier.weight(0.9f)
+                        modifier = Modifier.weight(0.85f)
                     )
 
                     AppList(
                         apps = uiState.allApps,
-                        selectedApp = uiState.selectedAppInfo,
-                        onClick = viewModel::incrementSelectedPlanetSize,
-                        modifier = Modifier.weight(0.1f)
+                        selectedApp = uiState.selectedOrbitalBody?.appInfo,
+                        selectedOrbitalBody = uiState.selectedOrbitalBody,
+                        onIncreaseSize = viewModel::increasePlanetSize,
+                        onDecreaseSpeed = viewModel::decreaseOrbitDuration,
+                        modifier = Modifier.weight(0.15f)
                     )
                 }
             }

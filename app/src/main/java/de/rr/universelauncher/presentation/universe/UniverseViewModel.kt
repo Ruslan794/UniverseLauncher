@@ -31,9 +31,7 @@ class UniverseViewModel @Inject constructor(
         isLoading = true,
         error = null,
         selectedOrbitalBody = null,
-        showAppDialog = false,
-        selectedAppInfo = null,
-        selectedPlanetIndex = null
+        showAppDialog = false
     ))
     val uiState: StateFlow<UniverseUiState> = _uiState.asStateFlow()
 
@@ -67,32 +65,61 @@ class UniverseViewModel @Inject constructor(
 
 
     fun onPlanetTapped(orbitalBody: OrbitalBody) {
-        val currentSystem = _uiState.value.orbitalSystem
-        val planetIndex = currentSystem?.orbitalBodies?.indexOf(orbitalBody) ?: -1
-
         _uiState.update {
             it.copy(
                 selectedOrbitalBody = orbitalBody,
-                showAppDialog = true,
-                selectedAppInfo = orbitalBody.appInfo,
-                selectedPlanetIndex = planetIndex
+                showAppDialog = true
             )
         }
     }
 
-    fun incrementSelectedPlanetSize() {
+    fun increasePlanetSize() {
         val currentSystem = _uiState.value.orbitalSystem
-        val planetIndex = _uiState.value.selectedPlanetIndex
+        val selectedBody = _uiState.value.selectedOrbitalBody
 
-        if (currentSystem != null && planetIndex != null && planetIndex >= 0) {
-            val currentPlanet = currentSystem.orbitalBodies[planetIndex]
-            val newSize = currentPlanet.orbitalConfig.size + 5f
+        if (selectedBody != null) {
+            val planetIndex = currentSystem.orbitalBodies.indexOf(selectedBody)
+            if (planetIndex >= 0) {
+                val currentPlanet = currentSystem.orbitalBodies[planetIndex]
+                val newSize = currentPlanet.orbitalConfig.size + 5f
 
-            val updatedSystem = OrbitalDistanceCalculator.updatePlanetSizeAndRecalculate(
-                currentSystem, planetIndex, newSize
-            )
-            _uiState.update {
-                it.copy(orbitalSystem = updatedSystem)
+                val updatedSystem = OrbitalDistanceCalculator.updatePlanetSizeAndRecalculate(
+                    currentSystem, planetIndex, newSize
+                )
+                
+                val updatedPlanet = updatedSystem.orbitalBodies[planetIndex]
+                _uiState.update {
+                    it.copy(
+                        orbitalSystem = updatedSystem,
+                        selectedOrbitalBody = updatedPlanet
+                    )
+                }
+            }
+        }
+    }
+
+    fun decreaseOrbitDuration() {
+        val currentSystem = _uiState.value.orbitalSystem
+        val selectedBody = _uiState.value.selectedOrbitalBody
+
+        if (selectedBody != null) {
+            val planetIndex = currentSystem.orbitalBodies.indexOf(selectedBody)
+            if (planetIndex >= 0) {
+                val currentPlanet = currentSystem.orbitalBodies[planetIndex]
+                val newDuration = (currentPlanet.orbitalConfig.orbitDuration - 1f).coerceAtLeast(2f)
+
+                val updatedConfig = currentPlanet.orbitalConfig.copy(orbitDuration = newDuration)
+                val updatedPlanet = currentPlanet.copy(orbitalConfig = updatedConfig)
+                val updatedBodies = currentSystem.orbitalBodies.toMutableList()
+                updatedBodies[planetIndex] = updatedPlanet
+
+                val updatedSystem = OrbitalSystem(currentSystem.star, updatedBodies)
+                _uiState.update {
+                    it.copy(
+                        orbitalSystem = updatedSystem,
+                        selectedOrbitalBody = updatedPlanet
+                    )
+                }
             }
         }
     }
@@ -108,14 +135,13 @@ class UniverseViewModel @Inject constructor(
     fun onDismissDialog() {
         _uiState.update {
             it.copy(
-                selectedOrbitalBody = null, showAppDialog = false
+                showAppDialog = false
             )
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        // No animation job to cancel anymore
     }
 
 }

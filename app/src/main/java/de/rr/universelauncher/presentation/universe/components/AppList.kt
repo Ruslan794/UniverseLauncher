@@ -24,13 +24,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.rr.universelauncher.domain.model.AppInfo
+import de.rr.universelauncher.domain.model.OrbitalBody
 import androidx.core.graphics.createBitmap
 
 @Composable
 fun AppList(
     apps: List<AppInfo>,
     selectedApp: AppInfo?,
-    onClick: () -> Unit,
+    selectedOrbitalBody: OrbitalBody?,
+    onIncreaseSize: () -> Unit,
+    onDecreaseSpeed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -42,38 +45,75 @@ fun AppList(
             )
             .padding(8.dp)
     ) {
-        Column(
-            modifier = modifier
-                .background(
-                    Color.White.copy(alpha = 0.1f),
-                    RoundedCornerShape(4.dp)
-                )
-                .padding(8.dp)
-        ) {
-
-            Text(
-                text = selectedApp?.appName ?: "No app selected",
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(
-                onClick = onClick,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Increase")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         LazyColumn(
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.fillMaxSize()
         ) {
+
+            item {
+                Column(
+                    modifier = modifier
+                        .background(
+                            Color.White.copy(alpha = 0.1f),
+                            RoundedCornerShape(4.dp)
+                        )
+                        .padding(8.dp)
+                ) {
+
+                    Text(
+                        text = selectedApp?.appName ?: "No app selected",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (selectedOrbitalBody != null) {
+                        Text(
+                            text = "Size: ${selectedOrbitalBody.orbitalConfig.size.toInt()}",
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "Speed: ${selectedOrbitalBody.orbitalConfig.orbitDuration.toInt()}s",
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Button(
+                                onClick = onIncreaseSize,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Increase Size")
+                            }
+
+                            Button(
+                                onClick = onDecreaseSpeed,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Decrease Speed")
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "No planet selected",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
             items(apps) { app ->
                 AppListItem(
                     app = app,

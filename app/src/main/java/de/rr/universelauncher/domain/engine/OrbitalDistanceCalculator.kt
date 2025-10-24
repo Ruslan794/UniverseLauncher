@@ -4,46 +4,50 @@ import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalConfig
 import de.rr.universelauncher.domain.model.OrbitalSystem
 import de.rr.universelauncher.domain.model.Star
+import androidx.compose.ui.geometry.Size
 
 object OrbitalDistanceCalculator {
 
-    private const val ORBIT_PADDING = 8f
-    private const val PLANET_PADDING = 4f
+    private const val ORBIT_PADDING = 20f
+    private const val PLANET_PADDING = 15f
+    private const val EDGE_PADDING = 30f
+    private const val PLANET_SPACING_MULTIPLIER = 2.5f
 
-    fun recalculateOrbitalDistances(orbitalSystem: OrbitalSystem): OrbitalSystem {
-        val sun = orbitalSystem.star
+    fun distributeOrbitsInCanvas(orbitalSystem: OrbitalSystem, canvasSize: Size): OrbitalSystem {
+        val star = orbitalSystem.star
         val orbitalBodies = orbitalSystem.orbitalBodies
 
         if (orbitalBodies.isEmpty()) {
             return orbitalSystem
         }
 
-        val sortedBodies = orbitalBodies.sortedBy { it.orbitalConfig.distance }
-
-        val updatedBodies = mutableListOf<OrbitalBody>()
-        var currentDistance = sun.radius + ORBIT_PADDING
-
-        for (orbitalBody in sortedBodies) {
-            val planetSize = orbitalBody.orbitalConfig.size
-            val ellipseRatio = orbitalBody.orbitalConfig.ellipseRatio
-
-            val newDistance = currentDistance + planetSize + PLANET_PADDING
-
-            val updatedConfig = orbitalBody.orbitalConfig.copy(
-                distance = newDistance
-            )
-
-            val updatedBody = orbitalBody.copy(
-                orbitalConfig = updatedConfig
-            )
-
-            updatedBodies.add(updatedBody)
-
-            val maxOrbitRadius = newDistance * ellipseRatio
-            currentDistance = maxOrbitRadius + planetSize + ORBIT_PADDING
+        val maxCanvasRadius = minOf(canvasSize.width, canvasSize.height) / 2f - EDGE_PADDING
+        val minOrbitRadius = star.radius + star.deadZone + ORBIT_PADDING
+        
+        if (maxCanvasRadius <= minOrbitRadius) {
+            return orbitalSystem
         }
 
-        return OrbitalSystem(sun, updatedBodies)
+        val availableSpace = maxCanvasRadius - minOrbitRadius
+        val step = (availableSpace / orbitalBodies.size) * PLANET_SPACING_MULTIPLIER
+        
+        val updatedBodies = orbitalBodies.mapIndexed { index, orbitalBody ->
+            val planetSize = orbitalBody.orbitalConfig.size
+            val planetPadding = planetSize * 0.5f
+            val totalPlanetSpace = planetSize + planetPadding
+            
+            val newDistance = minOrbitRadius + (index * step) + totalPlanetSpace
+            
+            val updatedConfig = orbitalBody.orbitalConfig.copy(distance = newDistance)
+            orbitalBody.copy(orbitalConfig = updatedConfig)
+        }
+
+        return OrbitalSystem(star, updatedBodies)
+    }
+
+    fun recalculateOrbitalDistances(orbitalSystem: OrbitalSystem): OrbitalSystem {
+        val defaultCanvasSize = Size(800f, 600f)
+        return distributeOrbitsInCanvas(orbitalSystem, defaultCanvasSize)
     }
 
     fun updatePlanetSizeAndRecalculate(

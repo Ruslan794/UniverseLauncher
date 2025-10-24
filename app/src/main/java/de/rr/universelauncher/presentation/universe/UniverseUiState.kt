@@ -10,7 +10,5 @@ data class UniverseUiState(
     val isLoading: Boolean,
     val error: String?,
     val selectedOrbitalBody: OrbitalBody?,
-    val showAppDialog: Boolean,
-    val selectedAppInfo: AppInfo?,
-    val selectedPlanetIndex: Int?
+    val showAppDialog: Boolean
 )
