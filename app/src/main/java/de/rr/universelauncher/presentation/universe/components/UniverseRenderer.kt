@@ -11,6 +11,9 @@ import de.rr.universelauncher.presentation.universe.components.cache.IconCache
 import de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.rotate
+import kotlin.math.*
 
 object UniverseRenderer {
 
@@ -25,8 +28,7 @@ object UniverseRenderer {
         orbitPathCache: OrbitPathCache,
         canvasSize: Size
     ) {
-        // Orbit paths are now drawn in PlanetRenderingEngine for better performance
-        drawStar(drawScope, orbitalSystem.star, center, sunBitmap)
+        drawStar(drawScope, orbitalSystem.star, center, sunBitmap, animationTime)
         drawPlanets(drawScope, orbitalSystem, animationTime, center, iconCache, canvasSize, orbitPathCache)
     }
 
@@ -47,48 +49,78 @@ object UniverseRenderer {
         drawScope: DrawScope,
         star: de.rr.universelauncher.domain.model.Star,
         center: Offset,
-        sunImage: ImageBitmap?
+        sunImage: ImageBitmap?,
+        animationTime: Float
     ) {
-        // Always draw the enhanced sun design
-        drawEnhancedSun(drawScope, star, center)
+        drawGradientBloomSun(drawScope, star, center, animationTime)
     }
-    
-    private fun drawEnhancedSun(
+
+    private fun drawGradientBloomSun(
+        drawScope: DrawScope,
+        star: de.rr.universelauncher.domain.model.Star,
+        center: Offset,
+        animationTime: Float
+    ) {
+        val baseRadius = star.radius
+        val sunColor = Color(0xFFFFD700)
+        val pulse = (sin(animationTime * 0.5f) * 0.1f + 0.9f)
+
+        val rings = 5
+        for (i in rings downTo 1) {
+            val alpha = 0.15f * (i.toFloat() / rings)
+            val radius = baseRadius * (1f + (rings - i) * 0.25f) * pulse
+
+            drawScope.drawCircle(
+                color = sunColor.copy(alpha = alpha),
+                radius = radius,
+                center = center
+            )
+        }
+
+        drawScope.drawCircle(
+            color = sunColor,
+            radius = baseRadius * 0.9f,
+            center = center
+        )
+
+        drawScope.drawCircle(
+            color = Color(0xFFFFF8DC).copy(alpha = 0.5f),
+            radius = baseRadius * 0.6f,
+            center = center
+        )
+    }
+
+    private fun drawMinimalistFlatSun(
         drawScope: DrawScope,
         star: de.rr.universelauncher.domain.model.Star,
         center: Offset
     ) {
         val baseRadius = star.radius
-        val sunColor = Color(0xFFFFD700) // Golden yellow
-        val brightColor = Color(0xFFFFF8DC) // Cream white
-        val shadowColor = Color(0xFFB8860B) // Dark goldenrod
-        
-        // Soft outer glow
+        val sunColor = Color(0xFFFFD700)
+        val shadowColor = Color(0xFFB8860B)
+
         drawScope.drawCircle(
-            color = sunColor.copy(alpha = 0.15f),
-            radius = baseRadius * 1.6f,
+            color = sunColor.copy(alpha = 0.2f),
+            radius = baseRadius * 1.3f,
             center = center
         )
-        
-        // Main sun body
+
+        drawScope.drawCircle(
+            color = shadowColor,
+            radius = baseRadius,
+            center = center + Offset(baseRadius * 0.05f, baseRadius * 0.05f)
+        )
+
         drawScope.drawCircle(
             color = sunColor,
             radius = baseRadius,
             center = center
         )
-        
-        // Subtle inner highlight (reflection)
+
         drawScope.drawCircle(
-            color = brightColor.copy(alpha = 0.4f),
-            radius = baseRadius * 0.6f,
-            center = center + Offset(-baseRadius * 0.2f, -baseRadius * 0.2f)
-        )
-        
-        // Soft shadow on the bottom
-        drawScope.drawCircle(
-            color = shadowColor.copy(alpha = 0.3f),
-            radius = baseRadius * 0.8f,
-            center = center + Offset(baseRadius * 0.1f, baseRadius * 0.1f)
+            color = Color.White.copy(alpha = 0.3f),
+            radius = baseRadius * 0.5f,
+            center = center - Offset(baseRadius * 0.2f, baseRadius * 0.2f)
         )
     }
 
@@ -101,7 +133,6 @@ object UniverseRenderer {
         canvasSize: Size,
         orbitPathCache: OrbitPathCache
     ) {
-        // Use the new PlanetRenderingEngine for consistent rendering
         PlanetRenderingEngine.drawPlanets(
             drawScope = drawScope,
             orbitalSystem = orbitalSystem,
@@ -118,15 +149,11 @@ object UniverseRenderer {
         position: Offset,
         iconCache: IconCache
     ) {
-        // This method is now handled by PlanetRenderingEngine
-        // Keeping for potential icon rendering in the future
         val cachedBitmap = iconCache.getIconBitmapSync(orbitalBody)
 
         if (cachedBitmap != null) {
-            // For now, use a default radius for icon sizing
-            // In the future, this could be calculated dynamically
             val planetRadius = 20f
-            
+
             drawScope.drawImage(
                 image = cachedBitmap,
                 topLeft = Offset(
