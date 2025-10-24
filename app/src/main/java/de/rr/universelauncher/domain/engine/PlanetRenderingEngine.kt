@@ -61,6 +61,7 @@ object PlanetRenderingEngine {
     private var cachedCanvasAnalysis: CanvasAnalysis? = null
     private var cachedSizeCalculation: SizeCalculation? = null
     private var lastCanvasSize: Size = Size.Zero
+    private var lastPlanetCount: Int = 0
 
     fun drawPlanets(
         drawScope: DrawScope,
@@ -78,7 +79,12 @@ object PlanetRenderingEngine {
             cachedCanvasAnalysis ?: analyzeCanvas(canvasSize, orbitalSystem.star)
         }
         
-        val sizeCalculation = if (cachedSizeCalculation == null || lastCanvasSize != canvasSize) {
+        val currentPlanetCount = orbitalSystem.orbitalBodies.size
+        
+        val sizeCalculation = if (cachedSizeCalculation == null || 
+                                  lastCanvasSize != canvasSize || 
+                                  lastPlanetCount != currentPlanetCount) {
+            lastPlanetCount = currentPlanetCount
             calculateSizes(orbitalSystem.orbitalBodies, canvasAnalysis).also { cachedSizeCalculation = it }
         } else {
             cachedSizeCalculation!!
