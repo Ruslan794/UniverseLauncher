@@ -17,9 +17,10 @@ Phase 2: Dynamische Größenberechnung (aus Canvas)
 8. maxPlanetenRadius = (radialSlotGröße - 2*planetPadding) / 2
 
 9. Größen-Lookup berechnen:
-   - LARGE  = maxPlanetenRadius * 1.0
-   - MEDIUM = maxPlanetenRadius * 0.75
-   - SMALL  = maxPlanetenRadius * 0.5
+   - LARGE  = maxPlanetenRadius * 1.3
+   - MEDIUM = maxPlanetenRadius * 1.0
+   - SMALL  = maxPlanetenRadius * 0.75
+   - *modificators können ändern, hier als beispiel, 1, 1.5 und 0.75
 
 ═══════════════════════════════════════════════════════════════
 Phase 3: Planeten zeichnen (Loop über orbitalBodies)

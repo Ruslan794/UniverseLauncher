@@ -15,7 +15,9 @@ import kotlinx.coroutines.withContext
 fun rememberIconCache(
     orbitalSystem: OrbitalSystem
 ): IconCache {
-    return remember { IconCache() }
+    return remember(orbitalSystem.orbitalBodies.map { it.appInfo.packageName }) { 
+        IconCache() 
+    }
 }
 
 class IconCache {

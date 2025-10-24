@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -117,45 +118,25 @@ class UniverseViewModel @Inject constructor(
 
     private fun observeSettingsChanges() {
         viewModelScope.launch {
-            // Observe both selected apps and orbit speeds changes
-            launcherSettingsRepository.getSelectedApps()
-                .catch { e ->
-                    _uiState.update {
-                        it.copy(error = e.message ?: "Failed to observe settings changes")
-                    }
+            // Combine all settings changes into a single observer to prevent redundant reloads
+            combine(
+                launcherSettingsRepository.getSelectedApps(),
+                launcherSettingsRepository.getAppOrbitSpeeds(),
+                launcherSettingsRepository.getAppPlanetSizes()
+            ) { selectedApps, orbitSpeeds, planetSizes ->
+                Triple(selectedApps, orbitSpeeds, planetSizes)
+            }
+            .catch { e ->
+                _uiState.update {
+                    it.copy(error = e.message ?: "Failed to observe settings changes")
                 }
-                .collect { selectedApps ->
-                    // Reload apps when selected apps change
+            }
+            .collect { (selectedApps, orbitSpeeds, planetSizes) ->
+                // Only reload if we have valid data
+                if (selectedApps.isNotEmpty()) {
                     loadAppsWithSelectedApps(selectedApps)
                 }
-        }
-        
-        viewModelScope.launch {
-            // Observe orbit speed changes and reload universe
-            launcherSettingsRepository.getAppOrbitSpeeds()
-                .catch { e ->
-                    _uiState.update {
-                        it.copy(error = e.message ?: "Failed to observe orbit speed changes")
-                    }
-                }
-                .collect { orbitSpeeds ->
-                    // Reload apps when orbit speeds change
-                    reloadUniverse()
-                }
-        }
-        
-        viewModelScope.launch {
-            // Observe planet size changes and reload universe
-            launcherSettingsRepository.getAppPlanetSizes()
-                .catch { e ->
-                    _uiState.update {
-                        it.copy(error = e.message ?: "Failed to observe planet size changes")
-                    }
-                }
-                .collect { planetSizes ->
-                    // Reload apps when planet sizes change
-                    reloadUniverse()
-                }
+            }
         }
     }
 

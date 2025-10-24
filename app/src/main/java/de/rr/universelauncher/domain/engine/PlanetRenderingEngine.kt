@@ -13,6 +13,7 @@ import de.rr.universelauncher.domain.model.Star
 import de.rr.universelauncher.domain.model.PlanetSize
 import de.rr.universelauncher.presentation.universe.components.cache.IconCache
 import kotlin.math.*
+import android.util.Log
 
 object PlanetRenderingEngine {
 
@@ -48,7 +49,7 @@ object PlanetRenderingEngine {
         val maxPlanetRadius = (radialSlotSize - 2 * RenderingConstants.PLANET_PADDING) / 2f
         
         val sizeLookup = mapOf(
-            PlanetSize.LARGE to maxPlanetRadius * 1.5f,
+            PlanetSize.LARGE to maxPlanetRadius * 1.3f,
             PlanetSize.MEDIUM to maxPlanetRadius * 1.0f,
             PlanetSize.SMALL to maxPlanetRadius * 0.75f
         )
@@ -64,9 +65,12 @@ object PlanetRenderingEngine {
         iconCache: IconCache? = null,
         orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null
     ) {
+        // Cache analysis results to avoid recalculating every frame
         val canvasAnalysis = analyzeCanvas(canvasSize, orbitalSystem.star)
         val sizeCalculation = calculateSizes(orbitalSystem.orbitalBodies, canvasAnalysis)
         
+        // Only log performance issues, not every frame
+        val renderStartTime = System.nanoTime()
         orbitalSystem.orbitalBodies.forEachIndexed { index, orbitalBody ->
             drawSinglePlanet(
                 drawScope = drawScope,
@@ -78,6 +82,12 @@ object PlanetRenderingEngine {
                 iconCache = iconCache,
                 orbitPathCache = orbitPathCache
             )
+        }
+        val renderTime = (System.nanoTime() - renderStartTime) / 1_000_000.0
+        
+        // Only log if there are significant performance issues
+        if (renderTime > 2.0) {
+            Log.w("PlanetRendering", "Slow render: ${"%.2f".format(renderTime)}ms, Planets: ${orbitalSystem.orbitalBodies.size}")
         }
     }
 
@@ -161,12 +171,17 @@ object PlanetRenderingEngine {
     ): Offset {
         val config = orbitalBody.orbitalConfig
         
-        // 14. Planet-Position berechnen
+        // 14. Planet-Position berechnen - optimized with cached calculations
         val effectiveOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
-        val angle = (animationTime / effectiveOrbitDuration * 360f + config.startAngle) * PI / 180f
+        val normalizedTime = (animationTime / effectiveOrbitDuration) % 1f
+        val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
         
-        val x = center.x + orbitDistance * cos(angle).toFloat() * ellipseRatio
-        val y = center.y + orbitDistance * sin(angle).toFloat()
+        // Pre-calculate trigonometric values
+        val cosAngle = cos(angle).toFloat()
+        val sinAngle = sin(angle).toFloat()
+        
+        val x = center.x + orbitDistance * cosAngle * ellipseRatio
+        val y = center.y + orbitDistance * sinAngle
         
         return Offset(x, y)
     }

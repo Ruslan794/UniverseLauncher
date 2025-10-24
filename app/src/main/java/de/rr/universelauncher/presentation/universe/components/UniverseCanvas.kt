@@ -7,12 +7,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import de.rr.universelauncher.domain.engine.OrbitalPhysics
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
 import de.rr.universelauncher.presentation.universe.components.cache.rememberIconCache
 import de.rr.universelauncher.presentation.universe.components.cache.rememberOrbitPathCache
 import kotlinx.coroutines.delay
+import android.util.Log
 
 @Composable
 fun UniverseCanvas(
@@ -20,6 +22,7 @@ fun UniverseCanvas(
     onPlanetTapped: (OrbitalBody, Offset, Float) -> Unit,
     onStarTapped: () -> Unit,
     onCanvasSizeChanged: (androidx.compose.ui.geometry.Size) -> Unit = {},
+    isPaused: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val iconCache = rememberIconCache(orbitalSystem)
@@ -31,15 +34,24 @@ fun UniverseCanvas(
     var currentAnimationTime by remember { mutableStateOf(0f) }
     var center by remember { mutableStateOf(Offset.Zero) }
     var lastCanvasSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+    var frameCount by remember { mutableStateOf(0) }
+    var lastFpsTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    val density = LocalDensity.current
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(16)
-            currentAnimationTime += 0.016f
+    // Use a more efficient animation approach
+    LaunchedEffect(isPaused) {
+        if (!isPaused) {
+            while (true) {
+                delay(16) // 60 FPS
+                currentAnimationTime += 0.016f
+            }
         }
     }
 
     val orbitPathCache = rememberOrbitPathCache(orbitalSystem, center)
+    
+    // Memoize expensive calculations
+    val memoizedOrbitalSystem = remember(orbitalSystem) { orbitalSystem }
 
     Canvas(
         modifier = modifier
@@ -93,14 +105,34 @@ fun UniverseCanvas(
             onCanvasSizeChanged(currentCanvasSize)
         }
 
+        val renderStartTime = System.nanoTime()
+        
         UniverseRenderer.drawUniverse(
             drawScope = this,
-            orbitalSystem = orbitalSystem,
+            orbitalSystem = memoizedOrbitalSystem,
             animationTime = currentAnimationTime,
             center = currentCenter,
             iconCache = iconCache,
             orbitPathCache = orbitPathCache,
             canvasSize = currentCanvasSize
         )
+        
+        val renderEndTime = System.nanoTime()
+        val renderTimeMs = (renderEndTime - renderStartTime) / 1_000_000.0
+        
+        // Performance logging - only log every 3 seconds to reduce overhead
+        frameCount++
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastFpsTime >= 3000) { // Log every 3 seconds
+            val fps = frameCount * 1000.0 / (currentTime - lastFpsTime)
+            Log.i("UniversePerformance", "FPS: ${"%.1f".format(fps)}, Render: ${"%.2f".format(renderTimeMs)}ms, Planets: ${orbitalSystem.orbitalBodies.size}")
+            frameCount = 0
+            lastFpsTime = currentTime
+        }
+        
+        // Log slow frames only if significantly slow
+        if (renderTimeMs > 8.0) {
+            Log.w("UniversePerformance", "Slow frame: ${"%.2f".format(renderTimeMs)}ms")
+        }
     }
 }

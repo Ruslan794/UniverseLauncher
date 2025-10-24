@@ -57,6 +57,7 @@ fun UniverseScreen(
                     },
                     onStarTapped = viewModel::onStarTapped,
                     onCanvasSizeChanged = viewModel::updateCanvasSize,
+                    isPaused = uiState.showSettings,
                     modifier = Modifier.fillMaxSize()
                 )
             }
