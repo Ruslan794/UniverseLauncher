@@ -55,7 +55,7 @@ fun UniverseCanvas(
     val PHASE1_DURATION = 100L
     val PHASE2_DURATION = 400L
     val PHASE3_DURATION = 800L
-    val MAX_SPEED_MULTIPLIER = 12f
+    val MAX_SPEED_MULTIPLIER = 10f
     val SPEED_STACK_FACTOR = 2f
 
     var speedMultiplier by remember { mutableStateOf(1f) }

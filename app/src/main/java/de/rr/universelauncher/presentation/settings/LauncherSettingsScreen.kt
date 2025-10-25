@@ -34,84 +34,45 @@ fun LauncherSettingsScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(SpaceBackground)
+            .background(Color.Black.copy(alpha = 0.95f))
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "App Settings",
-                    color = Color.White,
+                    text = "Einstellungen",
                     fontSize = 24.sp,
-                    modifier = Modifier.weight(1f)
+                    color = Color.White
                 )
-
-                IconButton(
-                    onClick = onClose,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color.White.copy(alpha = 0.1f), CircleShape)
-                ) {
-                    Text(
-                        text = "✕",
-                        color = Color.White,
-                        fontSize = 24.sp
+                
+                IconButton(onClick = onClose) {
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
+                        contentDescription = "Close",
+                        tint = Color.White
                     )
                 }
             }
 
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color.White)
-                    }
-                }
+            Spacer(modifier = Modifier.height(16.dp))
 
-                uiState.error != null -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "Error: ${uiState.error}",
-                                color = Color.White
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = onClose) {
-                                Text("Close")
-                            }
-                        }
-                    }
-                }
-
-                else -> {
-                    AppSelectionList(
-                        apps = uiState.allApps,
-                        selectedApps = uiState.selectedApps,
-                        appOrder = uiState.appOrder,
-                        searchQuery = uiState.searchQuery,
-                        onSearchQueryChange = viewModel::setSearchQuery,
-                        onToggleApp = viewModel::toggleAppSelection,
-                        onMoveUp = viewModel::moveAppUp,
-                        onMoveDown = viewModel::moveAppDown,
-                        onSetPosition = viewModel::setAppPosition,
-                        onAppSettings = { app -> showAppSettings = app }
-                    )
-                }
-            }
+            AppSelectionList(
+                apps = uiState.allApps,
+                selectedApps = uiState.selectedApps,
+                appOrder = uiState.appOrder,
+                searchQuery = uiState.searchQuery,
+                onSearchQueryChange = viewModel::setSearchQuery,
+                onToggleApp = viewModel::toggleAppSelection,
+                onMoveUp = viewModel::moveAppUp,
+                onMoveDown = viewModel::moveAppDown,
+                onSetPosition = viewModel::setAppPosition,
+                onAppSettings = { app -> showAppSettings = app }
+            )
         }
     }
 

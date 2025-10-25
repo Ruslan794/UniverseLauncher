@@ -3,113 +3,63 @@ package de.rr.universelauncher.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import de.rr.universelauncher.domain.repository.AppRepository
-import de.rr.universelauncher.domain.repository.LauncherSettingsRepository
+import de.rr.universelauncher.domain.manager.AppDataManager
 import de.rr.universelauncher.domain.model.AppInfo
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
 import javax.inject.Inject
 
 @HiltViewModel
 class LauncherSettingsViewModel @Inject constructor(
-    private val appRepository: AppRepository,
-    private val launcherSettingsRepository: LauncherSettingsRepository
+    private val appDataManager: AppDataManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LauncherSettingsUiState())
     val uiState: StateFlow<LauncherSettingsUiState> = _uiState.asStateFlow()
 
-    private var cachedAllApps: List<AppInfo>? = null
     private var loadDataJob: Job? = null
 
     fun setFolderId(folderId: String?) {
-        _uiState.update { it.copy(folderId = folderId) }
-        loadData()
-    }
-
-    init {
-        loadData()
-    }
-
-    private fun loadData() {
         loadDataJob?.cancel()
         loadDataJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-
-            try {
-                val allApps = cachedAllApps ?: appRepository.getInstalledAppsWithLaunchCounts().also {
-                    cachedAllApps = it
-                }
-
-                val currentFolderId = _uiState.value.folderId
-
-                if (currentFolderId != null) {
-                    val folderData = launcherSettingsRepository.getFolders().first()
-                    val folder = folderData.find { it.id == currentFolderId }
-                    val defaultFolderApps = folder?.appPackageNames ?: emptySet()
-
-                    var selectedApps = launcherSettingsRepository.getFolderSelectedApps(currentFolderId).first()
-                    var appOrder = launcherSettingsRepository.getFolderAppOrder(currentFolderId).first()
-
-                    if (selectedApps.isEmpty() && defaultFolderApps.isNotEmpty()) {
-                        selectedApps = defaultFolderApps
-                        launcherSettingsRepository.setFolderSelectedApps(currentFolderId, selectedApps)
-
-                        val initialOrder = selectedApps.mapIndexed { index, packageName ->
-                            packageName to (index + 1)
-                        }.toMap()
-                        appOrder = initialOrder
-                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, appOrder)
-                    }
-
+            if (folderId != null) {
+                combine(
+                    appDataManager.allApps,
+                    appDataManager.folderSelectedApps,
+                    appDataManager.folderAppOrders
+                ) { allApps, folderSelected, folderOrders ->
+                    val selected = folderSelected[folderId] ?: emptySet()
+                    val order = folderOrders[folderId] ?: emptyMap()
+                    Triple(allApps, selected, order)
+                }.collect { (allApps, selected, order) ->
                     _uiState.update {
                         it.copy(
                             allApps = allApps,
-                            selectedApps = selectedApps,
-                            appOrder = appOrder,
-                            isLoading = false,
-                            error = null
-                        )
-                    }
-                } else {
-                    var selectedApps = launcherSettingsRepository.getSelectedApps().first()
-                    var appOrder = launcherSettingsRepository.getAppOrder().first()
-
-                    if (selectedApps.isEmpty()) {
-                        val topApps = allApps.sortedByDescending { it.launchCount }.take(6)
-                        selectedApps = topApps.map { it.packageName }.toSet()
-                        launcherSettingsRepository.setSelectedApps(selectedApps)
-
-                        val initialOrder = topApps.mapIndexed { index, app ->
-                            app.packageName to (index + 1)
-                        }.toMap()
-                        appOrder = initialOrder
-                        launcherSettingsRepository.setAppOrder(appOrder)
-                    }
-
-                    _uiState.update {
-                        it.copy(
-                            allApps = allApps,
-                            selectedApps = selectedApps,
-                            appOrder = appOrder,
-                            isLoading = false,
-                            error = null
+                            selectedApps = selected,
+                            appOrder = order,
+                            folderId = folderId,
+                            isLoading = false
                         )
                     }
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load data"
-                    )
+            } else {
+                combine(
+                    appDataManager.allApps,
+                    appDataManager.selectedApps,
+                    appDataManager.appOrder
+                ) { allApps, selected, order ->
+                    Triple(allApps, selected, order)
+                }.collect { (allApps, selected, order) ->
+                    _uiState.update {
+                        it.copy(
+                            allApps = allApps,
+                            selectedApps = selected,
+                            appOrder = order,
+                            folderId = null,
+                            isLoading = false
+                        )
+                    }
                 }
             }
         }
@@ -136,19 +86,11 @@ class LauncherSettingsViewModel @Inject constructor(
                     }
 
                     if (currentFolderId != null) {
-                        launcherSettingsRepository.setFolderSelectedApps(currentFolderId, newSelected)
-                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
+                        appDataManager.setFolderSelectedApps(currentFolderId, newSelected)
+                        appDataManager.setFolderAppOrder(currentFolderId, currentOrder)
                     } else {
-                        launcherSettingsRepository.setSelectedApps(newSelected)
-                        launcherSettingsRepository.setAppOrder(currentOrder)
-                    }
-
-                    _uiState.update {
-                        it.copy(
-                            selectedApps = newSelected,
-                            appOrder = currentOrder,
-                            error = null
-                        )
+                        appDataManager.setSelectedApps(newSelected)
+                        appDataManager.setAppOrder(currentOrder)
                     }
                 } else {
                     if (currentSelected.size >= 6) {
@@ -163,19 +105,11 @@ class LauncherSettingsViewModel @Inject constructor(
 
                     val newSelected = currentSelected + packageName
                     if (currentFolderId != null) {
-                        launcherSettingsRepository.setFolderSelectedApps(currentFolderId, newSelected)
-                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
+                        appDataManager.setFolderSelectedApps(currentFolderId, newSelected)
+                        appDataManager.setFolderAppOrder(currentFolderId, currentOrder)
                     } else {
-                        launcherSettingsRepository.setSelectedApps(newSelected)
-                        launcherSettingsRepository.setAppOrder(currentOrder)
-                    }
-
-                    _uiState.update {
-                        it.copy(
-                            selectedApps = newSelected,
-                            appOrder = currentOrder,
-                            error = null
-                        )
+                        appDataManager.setSelectedApps(newSelected)
+                        appDataManager.setAppOrder(currentOrder)
                     }
                 }
             } catch (e: Exception) {
@@ -200,13 +134,9 @@ class LauncherSettingsViewModel @Inject constructor(
                     currentOrder[packageName] = currentPosition - 1
                     currentOrder[swapPackage] = currentPosition
                     if (currentFolderId != null) {
-                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
+                        appDataManager.setFolderAppOrder(currentFolderId, currentOrder)
                     } else {
-                        launcherSettingsRepository.setAppOrder(currentOrder)
-                    }
-
-                    _uiState.update {
-                        it.copy(appOrder = currentOrder)
+                        appDataManager.setAppOrder(currentOrder)
                     }
                 }
             } catch (e: Exception) {
@@ -232,13 +162,9 @@ class LauncherSettingsViewModel @Inject constructor(
                     currentOrder[packageName] = currentPosition + 1
                     currentOrder[swapPackage] = currentPosition
                     if (currentFolderId != null) {
-                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
+                        appDataManager.setFolderAppOrder(currentFolderId, currentOrder)
                     } else {
-                        launcherSettingsRepository.setAppOrder(currentOrder)
-                    }
-
-                    _uiState.update {
-                        it.copy(appOrder = currentOrder)
+                        appDataManager.setAppOrder(currentOrder)
                     }
                 }
             } catch (e: Exception) {
@@ -276,13 +202,9 @@ class LauncherSettingsViewModel @Inject constructor(
                     }
 
                     if (currentFolderId != null) {
-                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, newOrder)
+                        appDataManager.setFolderAppOrder(currentFolderId, newOrder)
                     } else {
-                        launcherSettingsRepository.setAppOrder(newOrder)
-                    }
-
-                    _uiState.update {
-                        it.copy(appOrder = newOrder)
+                        appDataManager.setAppOrder(newOrder)
                     }
                 }
             } catch (e: Exception) {
@@ -298,9 +220,9 @@ class LauncherSettingsViewModel @Inject constructor(
             try {
                 val currentFolderId = _uiState.value.folderId
                 if (currentFolderId != null) {
-                    launcherSettingsRepository.setFolderAppOrbitSpeed(currentFolderId, packageName, speed)
+                    appDataManager.setFolderAppOrbitSpeed(currentFolderId, packageName, speed)
                 } else {
-                    launcherSettingsRepository.setAppOrbitSpeed(packageName, speed)
+                    appDataManager.setAppOrbitSpeed(packageName, speed)
                 }
 
                 val allApps = _uiState.value.allApps
@@ -327,9 +249,9 @@ class LauncherSettingsViewModel @Inject constructor(
             try {
                 val currentFolderId = _uiState.value.folderId
                 if (currentFolderId != null) {
-                    launcherSettingsRepository.setFolderAppPlanetSize(currentFolderId, packageName, size)
+                    appDataManager.setFolderAppPlanetSize(currentFolderId, packageName, size)
                 } else {
-                    launcherSettingsRepository.setAppPlanetSize(packageName, size)
+                    appDataManager.setAppPlanetSize(packageName, size)
                 }
 
                 val planetSize = when (size) {
