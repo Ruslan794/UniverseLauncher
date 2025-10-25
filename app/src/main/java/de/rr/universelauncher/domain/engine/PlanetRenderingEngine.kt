@@ -70,24 +70,26 @@ object PlanetRenderingEngine {
         iconCache: IconCache? = null,
         orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null
     ) {
+        if (orbitalSystem.orbitalBodies.isEmpty()) return
+
         val canvasAnalysis = if (lastCanvasSize != canvasSize) {
             lastCanvasSize = canvasSize
             analyzeCanvas(canvasSize, orbitalSystem.star).also { cachedCanvasAnalysis = it }
         } else {
-            cachedCanvasAnalysis ?: analyzeCanvas(canvasSize, orbitalSystem.star)
+            cachedCanvasAnalysis ?: analyzeCanvas(canvasSize, orbitalSystem.star).also { cachedCanvasAnalysis = it }
         }
-        
+
         val currentPlanetCount = orbitalSystem.orbitalBodies.size
-        
-        val sizeCalculation = if (cachedSizeCalculation == null || 
-                                  lastCanvasSize != canvasSize || 
+
+        val sizeCalculation = if (cachedSizeCalculation == null ||
+                                  lastCanvasSize != canvasSize ||
                                   lastPlanetCount != currentPlanetCount) {
             lastPlanetCount = currentPlanetCount
             calculateSizes(orbitalSystem.orbitalBodies, canvasAnalysis).also { cachedSizeCalculation = it }
         } else {
             cachedSizeCalculation!!
         }
-        
+
         orbitalSystem.orbitalBodies.forEachIndexed { index, orbitalBody ->
             drawSinglePlanet(
                 drawScope = drawScope,

@@ -47,7 +47,7 @@ class UniverseViewModel @Inject constructor(
 
     init {
         loadApps()
-        observeSettingsChanges()
+        observeSelectedAppsChanges()
     }
 
     private fun loadApps() {
@@ -94,6 +94,11 @@ class UniverseViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 appRepository.trackAppLaunch(orbitalBody.appInfo.packageName)
+            } catch (e: Exception) {
+                android.util.Log.e("UniverseViewModel", "Failed to track app launch", e)
+            }
+
+            try {
                 appRepository.launchApp(orbitalBody.appInfo.packageName)
             } catch (e: Exception) {
                 _uiState.update {
@@ -102,7 +107,6 @@ class UniverseViewModel @Inject constructor(
             }
         }
     }
-
 
     fun onStarTapped() {
         _uiState.update {
@@ -117,28 +121,20 @@ class UniverseViewModel @Inject constructor(
     }
 
     @OptIn(FlowPreview::class)
-    private fun observeSettingsChanges() {
+    private fun observeSelectedAppsChanges() {
         viewModelScope.launch {
-            // Combine all settings changes into a single observer to prevent redundant reloads
-            combine(
-                launcherSettingsRepository.getSelectedApps(),
-                launcherSettingsRepository.getAppOrbitSpeeds(),
-                launcherSettingsRepository.getAppPlanetSizes()
-            ) { selectedApps, orbitSpeeds, planetSizes ->
-                Triple(selectedApps, orbitSpeeds, planetSizes)
-            }
-            .debounce(300) // Debounce settings changes by 300ms
-            .catch { e ->
-                _uiState.update {
-                    it.copy(error = e.message ?: "Failed to observe settings changes")
+            launcherSettingsRepository.getSelectedApps()
+                .debounce(300)
+                .catch { e ->
+                    _uiState.update {
+                        it.copy(error = e.message ?: "Failed to observe settings changes")
+                    }
                 }
-            }
-            .collect { (selectedApps, orbitSpeeds, planetSizes) ->
-                // Only reload if we have valid data
-                if (selectedApps.isNotEmpty()) {
-                    loadAppsWithSelectedApps(selectedApps)
+                .collect { selectedApps ->
+                    if (selectedApps.isNotEmpty() && selectedApps != _uiState.value.orbitalSystem.orbitalBodies.map { it.appInfo.packageName }.toSet()) {
+                        loadAppsWithSelectedApps(selectedApps)
+                    }
                 }
-            }
         }
     }
 
@@ -170,35 +166,6 @@ class UniverseViewModel @Inject constructor(
         }
     }
 
-    private suspend fun reloadUniverse() {
-        try {
-            val allApps = appRepository.getInstalledAppsWithLaunchCounts()
-            val selectedApps = launcherSettingsRepository.getSelectedApps().first()
-            val filteredApps = allApps.filter { it.packageName in selectedApps }
-            val appOrder = launcherSettingsRepository.getAppOrder().first()
-            val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps, appOrder)
-            val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
-                orbitalSystem,
-                currentCanvasSize
-            )
-
-            _uiState.update {
-                it.copy(
-                    orbitalSystem = distributedSystem,
-                    isLoading = false,
-                    error = null
-                )
-            }
-        } catch (e: Exception) {
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to reload universe"
-                )
-            }
-        }
-    }
-
     fun updateCanvasSize(canvasSize: androidx.compose.ui.geometry.Size) {
         if (canvasSize.width <= 0 || canvasSize.height <= 0) return
 
@@ -220,10 +187,4 @@ class UniverseViewModel @Inject constructor(
             }
         }
     }
-
-
-    override fun onCleared() {
-        super.onCleared()
-    }
-
 }
