@@ -70,7 +70,6 @@ object PlanetRenderingEngine {
         iconCache: IconCache? = null,
         orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null
     ) {
-        // Only recalculate analysis if canvas size changed significantly
         val canvasAnalysis = if (lastCanvasSize != canvasSize) {
             lastCanvasSize = canvasSize
             analyzeCanvas(canvasSize, orbitalSystem.star).also { cachedCanvasAnalysis = it }
@@ -89,7 +88,6 @@ object PlanetRenderingEngine {
             cachedSizeCalculation!!
         }
         
-        // Draw planets in original order for better performance
         orbitalSystem.orbitalBodies.forEachIndexed { index, orbitalBody ->
             drawSinglePlanet(
                 drawScope = drawScope,
@@ -114,19 +112,15 @@ object PlanetRenderingEngine {
         iconCache: IconCache? = null,
         orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null
     ) {
-        // 10. Tatsächliche Größe auflösen
         val basePlanetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory] ?: 
             sizeCalculation.sizeLookup[PlanetSize.MEDIUM]!!
         
-        // 11. Orbit-Distance berechnen
         val orbitDistance = canvasAnalysis.minOffset + 
             (index * sizeCalculation.radialSlotSize) + 
             sizeCalculation.radialSlotSize / 2f
         
-        // 12. Orbit-Pfad zeichnen (aus Cache oder neu erstellen)
         val orbitPath = orbitPathCache?.getPath(orbitalBody)
         if (orbitPath != null) {
-            // Apply center offset to relative path
             val translatedPath = Path()
             translatedPath.addPath(orbitPath, canvasAnalysis.center)
             drawScope.drawPath(
@@ -135,21 +129,19 @@ object PlanetRenderingEngine {
                 style = Stroke(width = RenderingConstants.ORBIT_LINE_WIDTH)
             )
         } else {
-            // Fallback: Orbit-Pfad neu zeichnen
             drawOrbitPath(drawScope, canvasAnalysis.center, orbitDistance, orbitalBody.orbitalConfig.ellipseRatio)
         }
         
-        // 13. Calculate angle once for both position and depth scaling
         val config = orbitalBody.orbitalConfig
-        val effectiveOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
-        val normalizedTime = (animationTime / effectiveOrbitDuration) % 1f
+        val baseOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
+        
+        val normalizedTime = (animationTime / baseOrbitDuration) % 1f
         val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
         
-        // 14. Apply depth scaling to planet radius
         val depthScale = calculateDepthScale(angle)
+        val depthSpeed = calculateDepthSpeed(angle)
         val planetRadius = basePlanetRadius * depthScale
         
-        // 15. Planet-Position berechnen (reuse angle calculation)
         val position = calculatePlanetPositionWithAngle(
             angle = angle,
             orbitDistance = orbitDistance,
@@ -157,7 +149,6 @@ object PlanetRenderingEngine {
             ellipseRatio = orbitalBody.orbitalConfig.ellipseRatio
         )
         
-        // 16. Planet zeichnen
         drawPlanet(drawScope, orbitalBody, position, planetRadius, iconCache)
     }
 
@@ -171,7 +162,6 @@ object PlanetRenderingEngine {
         val radiusX = orbitDistance * ellipseRatio
         val radiusY = orbitDistance
         
-        // Ellipse-Pfad erstellen
         val rect = androidx.compose.ui.geometry.Rect(
             center.x - radiusX,
             center.y - radiusY,
@@ -196,12 +186,11 @@ object PlanetRenderingEngine {
     ): Offset {
         val config = orbitalBody.orbitalConfig
         
-        // 14. Planet-Position berechnen - optimized with cached calculations
-        val effectiveOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
-        val normalizedTime = (animationTime / effectiveOrbitDuration) % 1f
+        val baseOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
+        
+        val normalizedTime = (animationTime / baseOrbitDuration) % 1f
         val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
         
-        // Pre-calculate trigonometric values
         val cosAngle = cos(angle).toFloat()
         val sinAngle = sin(angle).toFloat()
         
@@ -217,7 +206,6 @@ object PlanetRenderingEngine {
         center: Offset,
         ellipseRatio: Float
     ): Offset {
-        // Pre-calculate trigonometric values
         val cosAngle = cos(angle).toFloat()
         val sinAngle = sin(angle).toFloat()
         
@@ -228,16 +216,17 @@ object PlanetRenderingEngine {
     }
 
     private fun calculateDepthScale(angle: Double): Float {
-        // sin(angle) gives us the Y-position (-1 to +1)
-        // -1 = top (far away), +1 = bottom (close)
         val sinAngle = sin(angle)
-        
-        // Scale between MIN_SCALE (top) and MAX_SCALE (bottom)
         val minScale = RenderingConstants.DEPTH_MIN_SCALE
         val maxScale = RenderingConstants.DEPTH_MAX_SCALE
-        
-        // Normalize from [-1, 1] to [minScale, maxScale]
         return minScale + (sinAngle.toFloat() + 1f) * (maxScale - minScale) / 2f
+    }
+
+    private fun calculateDepthSpeed(angle: Double): Float {
+        val sinAngle = sin(angle)
+        val minSpeed = RenderingConstants.DEPTH_MIN_SPEED
+        val maxSpeed = RenderingConstants.DEPTH_MAX_SPEED
+        return minSpeed + (sinAngle.toFloat() + 1f) * (maxSpeed - minSpeed) / 2f
     }
 
     private fun drawPlanet(
@@ -247,11 +236,9 @@ object PlanetRenderingEngine {
         planetRadius: Float,
         iconCache: IconCache? = null
     ) {
-        // Versuche Icon zu zeichnen, falls verfügbar
         val cachedBitmap = iconCache?.getIconBitmapSync(orbitalBody)
         
         if (cachedBitmap != null) {
-            // Icon mit korrekter Größe zeichnen
             val iconSize = (planetRadius * 2).toInt()
             drawScope.drawImage(
                 image = cachedBitmap,
@@ -262,15 +249,12 @@ object PlanetRenderingEngine {
                 dstSize = androidx.compose.ui.unit.IntSize(iconSize, iconSize)
             )
         } else {
-            // Fallback: Farbige Kreise zeichnen
-            // Glow-Effekt
             drawScope.drawCircle(
                 color = orbitalBody.orbitalConfig.color.copy(alpha = 0.2f),
                 radius = planetRadius * 1.3f,
                 center = position
             )
             
-            // Haupt-Planet
             drawScope.drawCircle(
                 color = orbitalBody.orbitalConfig.color,
                 radius = planetRadius,
