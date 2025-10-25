@@ -26,10 +26,11 @@ object UniverseRenderer {
         center: Offset,
         iconCache: IconCache,
         orbitPathCache: OrbitPathCache,
-        canvasSize: Size
+        canvasSize: Size,
+        speedMultiplier: Float = 1f
     ) {
         drawStar(drawScope, orbitalSystem.star, center, sunBitmap, animationTime)
-        drawPlanets(drawScope, orbitalSystem, animationTime, center, iconCache, canvasSize, orbitPathCache)
+        drawPlanets(drawScope, orbitalSystem, animationTime, center, iconCache, canvasSize, orbitPathCache, speedMultiplier)
     }
 
     private fun drawOrbitalPaths(
@@ -131,7 +132,8 @@ object UniverseRenderer {
         center: Offset,
         iconCache: IconCache,
         canvasSize: Size,
-        orbitPathCache: OrbitPathCache
+        orbitPathCache: OrbitPathCache,
+        speedMultiplier: Float = 1f
     ) {
         PlanetRenderingEngine.drawPlanets(
             drawScope = drawScope,
@@ -139,7 +141,8 @@ object UniverseRenderer {
             animationTime = animationTime,
             canvasSize = canvasSize,
             iconCache = iconCache,
-            orbitPathCache = orbitPathCache
+            orbitPathCache = orbitPathCache,
+            speedMultiplier = speedMultiplier
         )
     }
 

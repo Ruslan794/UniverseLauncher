@@ -17,6 +17,28 @@ import android.util.Log
 
 object PlanetRenderingEngine {
 
+    private val planetAngles = mutableMapOf<String, Double>()
+    
+    fun getPlanetAngle(planetKey: String): Double? = planetAngles[planetKey]
+    
+    fun setPlanetAngle(planetKey: String, angle: Double) {
+        planetAngles[planetKey] = angle
+    }
+    
+    fun calculateDepthScale(angle: Double): Float {
+        val sinAngle = sin(angle)
+        val minScale = RenderingConstants.DEPTH_MIN_SCALE
+        val maxScale = RenderingConstants.DEPTH_MAX_SCALE
+        return minScale + (sinAngle.toFloat() + 1f) * (maxScale - minScale) / 2f
+    }
+    
+    fun calculateDepthSpeed(angle: Double): Float {
+        val sinAngle = sin(angle)
+        val minSpeed = RenderingConstants.DEPTH_MIN_SPEED
+        val maxSpeed = RenderingConstants.DEPTH_MAX_SPEED
+        return minSpeed + (sinAngle.toFloat() + 1f) * (maxSpeed - minSpeed) / 2f
+    }
+
     data class CanvasAnalysis(
         val canvasRadius: Float,
         val center: Offset,
@@ -68,7 +90,8 @@ object PlanetRenderingEngine {
         animationTime: Float,
         canvasSize: Size,
         iconCache: IconCache? = null,
-        orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null
+        orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null,
+        speedMultiplier: Float = 1f
     ) {
         if (orbitalSystem.orbitalBodies.isEmpty()) return
 
@@ -99,7 +122,8 @@ object PlanetRenderingEngine {
                 canvasAnalysis = canvasAnalysis,
                 sizeCalculation = sizeCalculation,
                 iconCache = iconCache,
-                orbitPathCache = orbitPathCache
+                orbitPathCache = orbitPathCache,
+                speedMultiplier = speedMultiplier
             )
         }
     }
@@ -112,7 +136,8 @@ object PlanetRenderingEngine {
         canvasAnalysis: CanvasAnalysis,
         sizeCalculation: SizeCalculation,
         iconCache: IconCache? = null,
-        orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null
+        orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null,
+        speedMultiplier: Float = 1f
     ) {
         val basePlanetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory] ?: 
             sizeCalculation.sizeLookup[PlanetSize.MEDIUM]!!
@@ -136,12 +161,18 @@ object PlanetRenderingEngine {
         
         val config = orbitalBody.orbitalConfig
         val baseOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
+        val planetKey = orbitalBody.appInfo.packageName
         
-        val normalizedTime = (animationTime / baseOrbitDuration) % 1f
-        val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
+        val baseAngularVelocity = 2 * PI / baseOrbitDuration
+        val deltaTime = 0.016f * speedMultiplier
         
+        val currentAngle = planetAngles[planetKey] ?: (config.startAngle * PI / 180f)
+        val depthSpeed = calculateDepthSpeed(currentAngle)
+        val newAngle = currentAngle + baseAngularVelocity * depthSpeed * deltaTime
+        planetAngles[planetKey] = newAngle
+        
+        val angle = newAngle
         val depthScale = calculateDepthScale(angle)
-        val depthSpeed = calculateDepthSpeed(angle)
         val planetRadius = basePlanetRadius * depthScale
         
         val position = calculatePlanetPositionWithAngle(
@@ -217,19 +248,6 @@ object PlanetRenderingEngine {
         return Offset(x, y)
     }
 
-    private fun calculateDepthScale(angle: Double): Float {
-        val sinAngle = sin(angle)
-        val minScale = RenderingConstants.DEPTH_MIN_SCALE
-        val maxScale = RenderingConstants.DEPTH_MAX_SCALE
-        return minScale + (sinAngle.toFloat() + 1f) * (maxScale - minScale) / 2f
-    }
-
-    private fun calculateDepthSpeed(angle: Double): Float {
-        val sinAngle = sin(angle)
-        val minSpeed = RenderingConstants.DEPTH_MIN_SPEED
-        val maxSpeed = RenderingConstants.DEPTH_MAX_SPEED
-        return minSpeed + (sinAngle.toFloat() + 1f) * (maxSpeed - minSpeed) / 2f
-    }
 
     private fun drawPlanet(
         drawScope: DrawScope,

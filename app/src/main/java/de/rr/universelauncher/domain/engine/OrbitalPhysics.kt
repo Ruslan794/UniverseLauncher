@@ -72,7 +72,6 @@ object OrbitalPhysics {
 
         val selectedApps = apps
 
-        // Sort by custom order if available, otherwise by launch count
         val sortedApps = if (appOrder.isNotEmpty()) {
             selectedApps.sortedBy { app ->
                 appOrder[app.packageName] ?: Int.MAX_VALUE
@@ -82,9 +81,8 @@ object OrbitalPhysics {
         }
 
         val orbitalBodies = sortedApps.mapIndexed { index, app ->
-            // Use custom orbit speed if available, otherwise calculate based on index
             val orbitDuration = app.customOrbitSpeed ?: (15f + (index * 3f))
-            val sizeCategory = app.customPlanetSize ?: PlanetSize.MEDIUM // Default to medium
+            val sizeCategory = app.customPlanetSize ?: PlanetSize.MEDIUM
             val angleSpacing = 360f / sortedApps.size
             val startAngle = (index * angleSpacing) % 360f
             val color = planetColors[index % planetColors.size]

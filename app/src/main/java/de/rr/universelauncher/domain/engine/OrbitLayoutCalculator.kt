@@ -23,7 +23,6 @@ object OrbitLayoutCalculator {
     ): List<OrbitLayout> {
         if (orbitalBodies.isEmpty()) return emptyList()
 
-        // Use PlanetRenderingEngine for consistent calculations
         val canvasAnalysis = PlanetRenderingEngine.analyzeCanvas(canvasSize, star)
         val sizeCalculation = PlanetRenderingEngine.calculateSizes(orbitalBodies, canvasAnalysis)
 

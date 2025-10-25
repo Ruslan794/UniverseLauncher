@@ -133,22 +133,39 @@ fun UniverseCanvas(
                             val sizeCalculation = PlanetRenderingEngine.calculateSizes(orbitalSystem.orbitalBodies, canvasAnalysis)
 
                             orbitalSystem.orbitalBodies.forEachIndexed { index, orbitalBody ->
-                                val position = OrbitalPhysics.calculateOrbitalBodyPosition(
-                                    orbitalBody = orbitalBody,
-                                    timeSeconds = currentAnimationTime
-                                )
-
-                                val screenX = centerX + position.first
-                                val screenY = centerY + position.second
-                                val planetCenter = Offset(screenX, screenY)
+                                val orbitDistance = canvasAnalysis.minOffset + 
+                                    (index * sizeCalculation.radialSlotSize) + 
+                                    sizeCalculation.radialSlotSize / 2f
+                                
+                                val config = orbitalBody.orbitalConfig
+                                val baseOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
+                                val planetKey = orbitalBody.appInfo.packageName
+                                
+                                val baseAngularVelocity = 2 * kotlin.math.PI / baseOrbitDuration
+                                val deltaTime = 0.016f * speedMultiplier
+                                
+                                val currentAngle = PlanetRenderingEngine.getPlanetAngle(planetKey) ?: (config.startAngle * kotlin.math.PI / 180f)
+                                val depthSpeed = PlanetRenderingEngine.calculateDepthSpeed(currentAngle)
+                                val newAngle = currentAngle + baseAngularVelocity * depthSpeed * deltaTime
+                                PlanetRenderingEngine.setPlanetAngle(planetKey, newAngle)
+                                
+                                val cosAngle = kotlin.math.cos(newAngle).toFloat()
+                                val sinAngle = kotlin.math.sin(newAngle).toFloat()
+                                
+                                val x = centerX + orbitDistance * cosAngle * config.ellipseRatio
+                                val y = centerY + orbitDistance * sinAngle
+                                val planetCenter = Offset(x, y)
 
                                 val basePlanetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory]
                                     ?: sizeCalculation.sizeLookup[de.rr.universelauncher.domain.model.PlanetSize.MEDIUM]!!
+                                
+                                val depthScale = PlanetRenderingEngine.calculateDepthScale(newAngle)
+                                val planetRadius = basePlanetRadius * depthScale
 
                                 val distance = (offset - planetCenter).getDistance()
 
-                                if (distance <= basePlanetRadius * PLANET_TAP_TOLERANCE) {
-                                    onPlanetTapped(orbitalBody, planetCenter, basePlanetRadius)
+                                if (distance <= planetRadius * PLANET_TAP_TOLERANCE) {
+                                    onPlanetTapped(orbitalBody, planetCenter, planetRadius)
                                     return@forEachIndexed
                                 }
                             }
@@ -233,7 +250,8 @@ fun UniverseCanvas(
             center = currentCenter,
             iconCache = iconCache,
             orbitPathCache = orbitPathCache,
-            canvasSize = currentCanvasSize
+            canvasSize = currentCanvasSize,
+            speedMultiplier = speedMultiplier
         )
 
         frameCount++

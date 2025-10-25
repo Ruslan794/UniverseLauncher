@@ -32,7 +32,7 @@ class LauncherPreferences @Inject constructor(
             }
         } catch (e: Exception) {
             android.util.Log.e("LauncherPreferences", "Failed to set selected apps", e)
-            throw e // Re-throw to let the caller handle the error
+            throw e
         }
     }
 
@@ -61,7 +61,6 @@ class LauncherPreferences @Inject constructor(
                 preferences[AppSettings.APP_LAUNCH_COUNT] = updatedCounts
             }
         } catch (e: Exception) {
-            // Log error but don't throw to avoid breaking the app
             android.util.Log.e("LauncherPreferences", "Failed to increment launch count for $packageName", e)
         }
     }

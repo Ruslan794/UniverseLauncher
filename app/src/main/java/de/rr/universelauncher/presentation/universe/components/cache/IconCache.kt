@@ -24,15 +24,13 @@ class IconCache {
     private val cache = mutableMapOf<String, ImageBitmap>()
 
     fun getIconBitmapSync(orbitalBody: OrbitalBody): ImageBitmap? {
-        // Use a standard size for caching - will be scaled during rendering
-        val standardSize = 64 // Standard icon size for better quality
+        val standardSize = 64
         val cacheKey = "${orbitalBody.appInfo.packageName}_${standardSize}"
         return cache[cacheKey]
     }
 
     suspend fun getIconBitmap(orbitalBody: OrbitalBody): ImageBitmap? {
-        // Use a standard size for caching - will be scaled during rendering
-        val standardSize = 64 // Standard icon size for better quality
+        val standardSize = 64
         val cacheKey = "${orbitalBody.appInfo.packageName}_${standardSize}"
 
         return cache[cacheKey] ?: run {

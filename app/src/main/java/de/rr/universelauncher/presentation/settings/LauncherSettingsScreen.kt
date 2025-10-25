@@ -40,7 +40,6 @@ fun LauncherSettingsScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            // Content
             when {
                 uiState.isLoading -> {
                     Box(
@@ -81,7 +80,6 @@ fun LauncherSettingsScreen(
         }
     }
 
-    // App Settings Dialog
     showAppSettings?.let { app ->
         AppSettingsDialog(
             app = app,

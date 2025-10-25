@@ -42,7 +42,6 @@ fun AppSettingsDialog(
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-                // Header
                 Text(
                     text = "App Settings",
                     color = Color.White,
@@ -58,7 +57,6 @@ fun AppSettingsDialog(
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
 
-                // Planet Size Section
                 Text(
                     text = "Planet Size",
                     color = Color.White,
@@ -103,7 +101,6 @@ fun AppSettingsDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Orbit Speed Section
                 Text(
                     text = "Orbit Speed",
                     color = Color.White,
@@ -138,7 +135,6 @@ fun AppSettingsDialog(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
