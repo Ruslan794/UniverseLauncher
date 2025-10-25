@@ -18,7 +18,6 @@ import kotlin.math.*
 object UniverseRenderer {
 
     var sunBitmap: ImageBitmap? = null
-
     fun drawUniverse(
         drawScope: DrawScope,
         orbitalSystem: OrbitalSystem,
@@ -29,7 +28,7 @@ object UniverseRenderer {
         canvasSize: Size,
         speedMultiplier: Float = 1f
     ) {
-        drawStar(drawScope, orbitalSystem.star, center, sunBitmap, animationTime)
+        drawStar(drawScope, orbitalSystem.star, center, animationTime)
         drawPlanets(drawScope, orbitalSystem, animationTime, center, iconCache, canvasSize, orbitPathCache, speedMultiplier)
     }
 
@@ -50,7 +49,6 @@ object UniverseRenderer {
         drawScope: DrawScope,
         star: de.rr.universelauncher.domain.model.Star,
         center: Offset,
-        sunImage: ImageBitmap?,
         animationTime: Float
     ) {
         drawGradientBloomSun(drawScope, star, center, animationTime)

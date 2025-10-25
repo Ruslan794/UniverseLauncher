@@ -46,6 +46,9 @@ fun UniverseCanvas(
     LaunchedEffect(orbitalSystemId) {
         iconCache.clearCache()
         iconCache.preloadIcons(orbitalSystem)
+        PlanetRenderingEngine.clearAnglesForSystem(
+            orbitalSystem.orbitalBodies.map { it.appInfo.packageName }
+        )
     }
 
     var currentAnimationTime by remember { mutableStateOf(0f) }
@@ -62,35 +65,30 @@ fun UniverseCanvas(
     var isSpeedBoostActive by remember { mutableStateOf(false) }
     var currentMaxSpeed by remember { mutableStateOf(MAX_SPEED_MULTIPLIER) }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            if (!isSpeedBoostActive) {
-                delay(100)
-                continue
-            }
+    LaunchedEffect(isSpeedBoostActive) {
+        if (!isSpeedBoostActive) return@LaunchedEffect
 
-            val startTime = System.currentTimeMillis()
+        val startTime = System.currentTimeMillis()
 
-            while (System.currentTimeMillis() - startTime < PHASE1_DURATION) {
-                val progress = (System.currentTimeMillis() - startTime).toFloat() / PHASE1_DURATION
-                speedMultiplier = 1f + ((currentMaxSpeed - 1f) * progress)
-                delay(16)
-            }
-
-            speedMultiplier = currentMaxSpeed
-            delay(PHASE2_DURATION)
-
-            val decelStartTime = System.currentTimeMillis()
-            while (System.currentTimeMillis() - decelStartTime < PHASE3_DURATION) {
-                val progress = (System.currentTimeMillis() - decelStartTime).toFloat() / PHASE3_DURATION
-                speedMultiplier = currentMaxSpeed - ((currentMaxSpeed - 1f) * progress)
-                delay(16)
-            }
-
-            speedMultiplier = 1f
-            isSpeedBoostActive = false
-            currentMaxSpeed = MAX_SPEED_MULTIPLIER
+        while (System.currentTimeMillis() - startTime < PHASE1_DURATION) {
+            val progress = (System.currentTimeMillis() - startTime).toFloat() / PHASE1_DURATION
+            speedMultiplier = 1f + ((currentMaxSpeed - 1f) * progress)
+            delay(16)
         }
+
+        speedMultiplier = currentMaxSpeed
+        delay(PHASE2_DURATION)
+
+        val decelStartTime = System.currentTimeMillis()
+        while (System.currentTimeMillis() - decelStartTime < PHASE3_DURATION) {
+            val progress = (System.currentTimeMillis() - decelStartTime).toFloat() / PHASE3_DURATION
+            speedMultiplier = currentMaxSpeed - ((currentMaxSpeed - 1f) * progress)
+            delay(16)
+        }
+
+        speedMultiplier = 1f
+        isSpeedBoostActive = false
+        currentMaxSpeed = MAX_SPEED_MULTIPLIER
     }
 
     LaunchedEffect(isPaused) {

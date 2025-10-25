@@ -51,7 +51,15 @@ fun FolderCanvas(
     var currentScreenSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     val density = LocalDensity.current
     var editingTexts by remember { mutableStateOf(mapOf<String, String>()) }
-    val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val focusRequesters = remember(editingFolderId) {
+        if (editingFolderId != null) {
+            mutableMapOf<String, FocusRequester>().apply {
+                put(editingFolderId, FocusRequester())
+            }
+        } else {
+            mutableMapOf()
+        }
+    }
 
     LaunchedEffect(editingFolderId) {
         if (editingFolderId != null) {

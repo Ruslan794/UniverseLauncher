@@ -15,13 +15,14 @@ import kotlinx.coroutines.withContext
 fun rememberIconCache(
     orbitalSystem: OrbitalSystem
 ): IconCache {
-    return remember(orbitalSystem.orbitalBodies.map { it.appInfo.packageName }) { 
-        IconCache() 
+    return remember(orbitalSystem.orbitalBodies.map { it.appInfo.packageName }) {
+        IconCache()
     }
 }
 
 class IconCache {
     private val cache = mutableMapOf<String, ImageBitmap>()
+    private val maxCacheSize = 50
 
     fun getIconBitmapSync(orbitalBody: OrbitalBody): ImageBitmap? {
         val standardSize = 64
@@ -34,6 +35,11 @@ class IconCache {
         val cacheKey = "${orbitalBody.appInfo.packageName}_${standardSize}"
 
         return cache[cacheKey] ?: run {
+            if (cache.size >= maxCacheSize) {
+                val oldestKey = cache.keys.first()
+                cache.remove(oldestKey)
+            }
+
             val bitmap = convertDrawableToBitmap(orbitalBody.appInfo.icon, standardSize)
             if (bitmap != null) {
                 cache[cacheKey] = bitmap

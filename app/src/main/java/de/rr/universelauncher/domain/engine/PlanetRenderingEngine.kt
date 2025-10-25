@@ -18,20 +18,25 @@ import android.util.Log
 object PlanetRenderingEngine {
 
     private val planetAngles = mutableMapOf<String, Double>()
-    
+
     fun getPlanetAngle(planetKey: String): Double? = planetAngles[planetKey]
-    
+
     fun setPlanetAngle(planetKey: String, angle: Double) {
         planetAngles[planetKey] = angle
     }
-    
+
+    fun clearAnglesForSystem(packageNames: List<String>) {
+        val validKeys = packageNames.toSet()
+        planetAngles.keys.retainAll(validKeys)
+    }
+
     fun calculateDepthScale(angle: Double): Float {
         val sinAngle = sin(angle)
         val minScale = RenderingConstants.DEPTH_MIN_SCALE
         val maxScale = RenderingConstants.DEPTH_MAX_SCALE
         return minScale + (sinAngle.toFloat() + 1f) * (maxScale - minScale) / 2f
     }
-    
+
     fun calculateDepthSpeed(angle: Double): Float {
         val sinAngle = sin(angle)
         val minSpeed = RenderingConstants.DEPTH_MIN_SPEED
@@ -57,11 +62,11 @@ object PlanetRenderingEngine {
     fun analyzeCanvas(canvasSize: Size, star: Star): CanvasAnalysis {
         val canvasRadius = min(canvasSize.width, canvasSize.height) / 2f
         val center = Offset(canvasSize.width / 2f, canvasSize.height / 2f)
-        
+
         val minOffset = star.radius + star.deadZone
         val maxOffset = canvasRadius - RenderingConstants.GLOBAL_PADDING
         val availableRadius = maxOffset - minOffset
-        
+
         return CanvasAnalysis(canvasRadius, center, minOffset, maxOffset, availableRadius)
     }
 
@@ -69,13 +74,13 @@ object PlanetRenderingEngine {
         val planetCount = orbitalBodies.size
         val radialSlotSize = canvasAnalysis.availableRadius / planetCount
         val maxPlanetRadius = (radialSlotSize - 2 * RenderingConstants.PLANET_PADDING) / 2f
-        
+
         val sizeLookup = mapOf(
             PlanetSize.LARGE to maxPlanetRadius * RenderingConstants.PLANET_SIZE_BIG_MODIFIER,
             PlanetSize.MEDIUM to maxPlanetRadius * RenderingConstants.PLANET_SIZE_MEDIUM_MODIFIER,
             PlanetSize.SMALL to maxPlanetRadius * RenderingConstants.PLANET_SIZE_SMALL_MODIFIER
         )
-        
+
         return SizeCalculation(planetCount, radialSlotSize, maxPlanetRadius, sizeLookup)
     }
 
@@ -83,6 +88,11 @@ object PlanetRenderingEngine {
     private var cachedSizeCalculation: SizeCalculation? = null
     private var lastCanvasSize: Size = Size.Zero
     private var lastPlanetCount: Int = 0
+
+    fun invalidateCache() {
+        cachedCanvasAnalysis = null
+        cachedSizeCalculation = null
+    }
 
     fun drawPlanets(
         drawScope: DrawScope,
@@ -95,6 +105,8 @@ object PlanetRenderingEngine {
     ) {
         if (orbitalSystem.orbitalBodies.isEmpty()) return
 
+        val currentPlanetCount = orbitalSystem.orbitalBodies.size
+
         val canvasAnalysis = if (lastCanvasSize != canvasSize) {
             lastCanvasSize = canvasSize
             analyzeCanvas(canvasSize, orbitalSystem.star).also { cachedCanvasAnalysis = it }
@@ -102,11 +114,9 @@ object PlanetRenderingEngine {
             cachedCanvasAnalysis ?: analyzeCanvas(canvasSize, orbitalSystem.star).also { cachedCanvasAnalysis = it }
         }
 
-        val currentPlanetCount = orbitalSystem.orbitalBodies.size
-
         val sizeCalculation = if (cachedSizeCalculation == null ||
-                                  lastCanvasSize != canvasSize ||
-                                  lastPlanetCount != currentPlanetCount) {
+            lastCanvasSize != canvasSize ||
+            lastPlanetCount != currentPlanetCount) {
             lastPlanetCount = currentPlanetCount
             calculateSizes(orbitalSystem.orbitalBodies, canvasAnalysis).also { cachedSizeCalculation = it }
         } else {
@@ -192,23 +202,23 @@ object PlanetRenderingEngine {
         val path = Path()
         val radiusX = orbitDistance * ellipseRatio
         val radiusY = orbitDistance
-        
+
         val tiltAngle = RenderingConstants.ORBIT_TILT_ANGLE * PI / 180.0
         val cosTilt = cos(tiltAngle).toFloat()
         val sinTilt = sin(tiltAngle).toFloat()
-        
+
         val numPoints = 100
         for (i in 0 until numPoints) {
             val angle = (i.toFloat() / numPoints) * 2 * PI
             val offsetX = radiusX * cos(angle).toFloat()
             val offsetY = radiusY * sin(angle).toFloat()
-            
+
             val rotatedX = offsetX * cosTilt - offsetY * sinTilt
             val rotatedY = offsetX * sinTilt + offsetY * cosTilt
-            
+
             val x = center.x + rotatedX
             val y = center.y + rotatedY
-            
+
             if (i == 0) {
                 path.moveTo(x, y)
             } else {
@@ -216,35 +226,12 @@ object PlanetRenderingEngine {
             }
         }
         path.close()
-        
+
         drawScope.drawPath(
             path = path,
             color = Color.White.copy(alpha = RenderingConstants.ORBIT_LINE_ALPHA),
             style = Stroke(width = RenderingConstants.ORBIT_LINE_WIDTH)
         )
-    }
-
-    private fun calculatePlanetPosition(
-        orbitalBody: OrbitalBody,
-        animationTime: Float,
-        orbitDistance: Float,
-        center: Offset,
-        ellipseRatio: Float
-    ): Offset {
-        val config = orbitalBody.orbitalConfig
-        
-        val baseOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
-        
-        val normalizedTime = (animationTime / baseOrbitDuration) % 1f
-        val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
-        
-        val cosAngle = cos(angle).toFloat()
-        val sinAngle = sin(angle).toFloat()
-        
-        val x = center.x + orbitDistance * cosAngle * ellipseRatio
-        val y = center.y + orbitDistance * sinAngle
-        
-        return Offset(x, y)
     }
 
     private fun calculatePlanetPositionWithAngle(
@@ -255,26 +242,25 @@ object PlanetRenderingEngine {
     ): Offset {
         val cosAngle = cos(angle).toFloat()
         val sinAngle = sin(angle).toFloat()
-        
+
         val radiusX = orbitDistance * ellipseRatio
         val radiusY = orbitDistance
-        
+
         val offsetX = radiusX * cosAngle
         val offsetY = radiusY * sinAngle
-        
+
         val tiltAngle = RenderingConstants.ORBIT_TILT_ANGLE * PI / 180.0
         val cosTilt = cos(tiltAngle).toFloat()
         val sinTilt = sin(tiltAngle).toFloat()
-        
+
         val rotatedX = offsetX * cosTilt - offsetY * sinTilt
         val rotatedY = offsetX * sinTilt + offsetY * cosTilt
-        
+
         val x = center.x + rotatedX
         val y = center.y + rotatedY
-        
+
         return Offset(x, y)
     }
-
 
     private fun drawPlanet(
         drawScope: DrawScope,
@@ -284,7 +270,7 @@ object PlanetRenderingEngine {
         iconCache: IconCache? = null
     ) {
         val cachedBitmap = iconCache?.getIconBitmapSync(orbitalBody)
-        
+
         if (cachedBitmap != null) {
             val iconSize = (planetRadius * 2).toInt()
             drawScope.drawImage(
@@ -301,7 +287,7 @@ object PlanetRenderingEngine {
                 radius = planetRadius * 1.3f,
                 center = position
             )
-            
+
             drawScope.drawCircle(
                 color = orbitalBody.orbitalConfig.color,
                 radius = planetRadius,
