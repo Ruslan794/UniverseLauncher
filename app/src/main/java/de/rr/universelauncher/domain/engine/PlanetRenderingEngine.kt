@@ -49,15 +49,14 @@ object PlanetRenderingEngine {
         val maxPlanetRadius = (radialSlotSize - 2 * RenderingConstants.PLANET_PADDING) / 2f
         
         val sizeLookup = mapOf(
-            PlanetSize.LARGE to maxPlanetRadius * 1.3f,
-            PlanetSize.MEDIUM to maxPlanetRadius * 1.0f,
-            PlanetSize.SMALL to maxPlanetRadius * 0.75f
+            PlanetSize.LARGE to maxPlanetRadius * RenderingConstants.PLANET_SIZE_BIG_MODIFIER,
+            PlanetSize.MEDIUM to maxPlanetRadius * RenderingConstants.PLANET_SIZE_MEDIUM_MODIFIER,
+            PlanetSize.SMALL to maxPlanetRadius * RenderingConstants.PLANET_SIZE_SMALL_MODIFIER
         )
         
         return SizeCalculation(planetCount, radialSlotSize, maxPlanetRadius, sizeLookup)
     }
 
-    // Cache for canvas analysis to avoid recalculating every frame
     private var cachedCanvasAnalysis: CanvasAnalysis? = null
     private var cachedSizeCalculation: SizeCalculation? = null
     private var lastCanvasSize: Size = Size.Zero
@@ -90,7 +89,19 @@ object PlanetRenderingEngine {
             cachedSizeCalculation!!
         }
         
-        orbitalSystem.orbitalBodies.forEachIndexed { index, orbitalBody ->
+        // Sort planets by Y-position for proper depth layering (background first, foreground last)
+        val sortedBodies = orbitalSystem.orbitalBodies.mapIndexed { index, orbitalBody ->
+            // Calculate current Y-position for sorting
+            val config = orbitalBody.orbitalConfig
+            val effectiveOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
+            val normalizedTime = (animationTime / effectiveOrbitDuration) % 1f
+            val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
+            val yPosition = sin(angle).toFloat()
+            
+            Triple(orbitalBody, index, yPosition)
+        }.sortedBy { it.third } // Sort by Y-position (smaller Y = background, larger Y = foreground)
+        
+        sortedBodies.forEach { (orbitalBody, index, _) ->
             drawSinglePlanet(
                 drawScope = drawScope,
                 orbitalBody = orbitalBody,
@@ -115,7 +126,7 @@ object PlanetRenderingEngine {
         orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null
     ) {
         // 10. Tatsächliche Größe auflösen
-        val planetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory] ?: 
+        val basePlanetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory] ?: 
             sizeCalculation.sizeLookup[PlanetSize.MEDIUM]!!
         
         // 11. Orbit-Distance berechnen
@@ -139,7 +150,17 @@ object PlanetRenderingEngine {
             drawOrbitPath(drawScope, canvasAnalysis.center, orbitDistance, orbitalBody.orbitalConfig.ellipseRatio)
         }
         
-        // 14. Planet-Position berechnen
+        // 13. Calculate angle for depth scaling
+        val config = orbitalBody.orbitalConfig
+        val effectiveOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
+        val normalizedTime = (animationTime / effectiveOrbitDuration) % 1f
+        val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
+        
+        // 14. Apply depth scaling to planet radius
+        val depthScale = calculateDepthScale(angle)
+        val planetRadius = basePlanetRadius * depthScale
+        
+        // 15. Planet-Position berechnen
         val position = calculatePlanetPosition(
             orbitalBody = orbitalBody,
             animationTime = animationTime,
@@ -148,7 +169,7 @@ object PlanetRenderingEngine {
             ellipseRatio = orbitalBody.orbitalConfig.ellipseRatio
         )
         
-        // 15. Planet zeichnen
+        // 16. Planet zeichnen
         drawPlanet(drawScope, orbitalBody, position, planetRadius, iconCache)
     }
 
@@ -200,6 +221,19 @@ object PlanetRenderingEngine {
         val y = center.y + orbitDistance * sinAngle
         
         return Offset(x, y)
+    }
+
+    private fun calculateDepthScale(angle: Double): Float {
+        // sin(angle) gives us the Y-position (-1 to +1)
+        // -1 = top (far away), +1 = bottom (close)
+        val sinAngle = sin(angle)
+        
+        // Scale between MIN_SCALE (top) and MAX_SCALE (bottom)
+        val minScale = RenderingConstants.DEPTH_MIN_SCALE
+        val maxScale = RenderingConstants.DEPTH_MAX_SCALE
+        
+        // Normalize from [-1, 1] to [minScale, maxScale]
+        return minScale + (sinAngle.toFloat() + 1f) * (maxScale - minScale) / 2f
     }
 
     private fun drawPlanet(
