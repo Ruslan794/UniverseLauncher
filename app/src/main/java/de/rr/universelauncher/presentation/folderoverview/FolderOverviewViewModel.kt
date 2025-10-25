@@ -60,10 +60,9 @@ class FolderOverviewViewModel @Inject constructor(
                     val defaultFolders = createDefaultFolders(currentScreenSize.width, currentScreenSize.height)
                     val foldersWithApps = defaultFolders.mapIndexed { index, folder ->
                         val folderApps = when (index) {
-                            0 -> finalSelectedApps
+                            0 -> finalSelectedApps.take(6).toSet()
                             else -> {
-                                val startIndex = (index - 1) * appsPerFolder
-                                val endIndex = startIndex + 6
+                                val startIndex = (index - 1) * 6
                                 remainingApps.drop(startIndex).take(6).map { it.packageName }.toSet()
                             }
                         }

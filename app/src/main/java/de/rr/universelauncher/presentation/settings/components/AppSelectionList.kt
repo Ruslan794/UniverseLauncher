@@ -92,7 +92,10 @@ fun AppSelectionList(
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(filteredApps, key = { it.packageName }) { app ->
+            items(
+                items = filteredApps,
+                key = { it.packageName }
+            ) { app ->
                 val isAppSelected = app.packageName in selectedApps
                 val position = if (isAppSelected) appOrder[app.packageName] ?: 0 else 0
                 AppSelectionItem(
@@ -125,7 +128,11 @@ private fun AppSelectionItem(
     onSetPosition: (Int) -> Unit,
     onSettings: () -> Unit
 ) {
-    var positionInput by remember(position) { mutableStateOf(if (position > 0) position.toString() else "") }
+    var positionInput by remember { mutableStateOf("") }
+
+    LaunchedEffect(position) {
+        positionInput = if (position > 0) position.toString() else ""
+    }
 
     Row(
         modifier = Modifier

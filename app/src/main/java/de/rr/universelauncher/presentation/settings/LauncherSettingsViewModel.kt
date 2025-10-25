@@ -37,7 +37,12 @@ class LauncherSettingsViewModel @Inject constructor(
             try {
                 val allApps = appRepository.getInstalledAppsWithLaunchCounts()
 
-                launcherSettingsRepository.getSelectedApps()
+                combine(
+                    launcherSettingsRepository.getSelectedApps(),
+                    launcherSettingsRepository.getAppOrder()
+                ) { selectedApps, appOrder ->
+                    Pair(selectedApps, appOrder)
+                }
                     .catch { e ->
                         _uiState.update {
                             it.copy(
@@ -46,8 +51,7 @@ class LauncherSettingsViewModel @Inject constructor(
                             )
                         }
                     }
-                    .collect { selectedApps ->
-                        val appOrder = launcherSettingsRepository.getAppOrder().first()
+                    .collect { (selectedApps, appOrder) ->
                         _uiState.update {
                             it.copy(
                                 allApps = allApps,

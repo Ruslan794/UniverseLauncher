@@ -134,21 +134,53 @@ class UniverseViewModel @Inject constructor(
         _uiState.update {
             it.copy(showSettings = false)
         }
+        viewModelScope.launch {
+            delay(300)
+            loadApps()
+        }
     }
 
     @OptIn(FlowPreview::class)
     private fun observeSelectedAppsChanges() {
         viewModelScope.launch {
-            launcherSettingsRepository.getSelectedApps()
-                .debounce(300)
+            combine(
+                launcherSettingsRepository.getSelectedApps(),
+                launcherSettingsRepository.getAppOrder()
+            ) { selectedApps, appOrder ->
+                Pair(selectedApps, appOrder)
+            }
+                .debounce(500)
                 .catch { e ->
+                    android.util.Log.e("UniverseViewModel", "Error in observeSelectedAppsChanges", e)
                     _uiState.update {
                         it.copy(error = e.message ?: "Failed to observe settings changes")
                     }
                 }
-                .collect { selectedApps ->
-                    if (selectedApps.isNotEmpty() && selectedApps != _uiState.value.orbitalSystem.orbitalBodies.map { it.appInfo.packageName }.toSet() && _uiState.value.folderId == null) {
-                        loadAppsWithSelectedApps(selectedApps)
+                .collect { (selectedApps, appOrder) ->
+                    try {
+                        if (_uiState.value.folderId != null) {
+                            return@collect
+                        }
+
+                        if (_uiState.value.showSettings) {
+                            return@collect
+                        }
+
+                        val currentSystem = _uiState.value.orbitalSystem
+                        if (currentSystem.orbitalBodies.isEmpty() && selectedApps.isEmpty()) {
+                            return@collect
+                        }
+
+                        val currentPackages = currentSystem.orbitalBodies
+                            .map { it.appInfo.packageName }
+                            .toSet()
+
+                        if (selectedApps.isNotEmpty() && selectedApps != currentPackages) {
+                            delay(200)
+                            loadAppsWithSelectedApps(selectedApps)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("UniverseViewModel", "Error processing changes", e)
                     }
                 }
         }
@@ -156,8 +188,19 @@ class UniverseViewModel @Inject constructor(
 
     private suspend fun loadAppsWithSelectedApps(selectedApps: Set<String>) {
         try {
+            if (selectedApps.isEmpty()) {
+                android.util.Log.w("UniverseViewModel", "Attempted to load with empty selected apps")
+                return
+            }
+
             val allApps = appRepository.getInstalledAppsWithLaunchCounts()
             val filteredApps = allApps.filter { it.packageName in selectedApps }
+
+            if (filteredApps.isEmpty()) {
+                android.util.Log.w("UniverseViewModel", "No apps found for selected packages")
+                return
+            }
+
             val appOrder = launcherSettingsRepository.getAppOrder().first()
             val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps, appOrder)
             val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
@@ -173,10 +216,11 @@ class UniverseViewModel @Inject constructor(
                 )
             }
         } catch (e: Exception) {
+            android.util.Log.e("UniverseViewModel", "Failed to load apps with selected apps", e)
             _uiState.update {
                 it.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to load apps"
+                    error = "Failed to reload apps: ${e.message}"
                 )
             }
         }

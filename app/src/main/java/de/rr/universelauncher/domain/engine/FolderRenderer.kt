@@ -8,13 +8,14 @@ import de.rr.universelauncher.domain.model.Folder
 import kotlin.math.*
 
 object FolderRenderer {
-    
-    private const val FOLDER_STAR_RADIUS = 35f
-    private const val FOLDER_PLANET_RADIUS = 8f
-    private const val MIN_ORBIT_RADIUS = 60f
-    private const val ORBIT_SPACING = 35f
+
+    private const val FOLDER_STAR_RADIUS = 60f
+    private const val FOLDER_STAR_DEAD_ZONE = 40f
+    private const val FOLDER_PLANET_RADIUS = 12f
+    private const val MIN_ORBIT_RADIUS = 100f
+    private const val ORBIT_SPACING = 50f
     private const val MAX_ORBITS = 3
-    
+
     private val PLANET_COLORS = listOf(
         Color(0xFF4A90E2),
         Color(0xFFE24A4A),
@@ -23,7 +24,7 @@ object FolderRenderer {
         Color(0xFFE24AE2),
         Color(0xFF4AE2E2)
     )
-    
+
     fun drawFolder(
         drawScope: DrawScope,
         folder: Folder,
@@ -33,40 +34,40 @@ object FolderRenderer {
         drawFolderStar(drawScope, folder.position, animationTime)
         drawFolderPlanets(drawScope, folder.position, animationTime, planetCount)
     }
-    
+
     private fun drawFolderStar(
         drawScope: DrawScope,
         position: Offset,
         animationTime: Float
     ) {
         val starColor = Color(0xFFFFD700)
-        val pulse = (sin(animationTime * 0.8f) * 0.1f + 0.9f)
-        
-        val rings = 2
+        val pulse = (sin(animationTime * 1.2f) * 0.15f + 0.9f)
+
+        val rings = 3
         for (i in rings downTo 1) {
-            val alpha = 0.2f * (i.toFloat() / rings)
-            val radius = FOLDER_STAR_RADIUS * (1f + (rings - i) * 0.15f) * pulse
-            
+            val alpha = 0.25f * (i.toFloat() / rings)
+            val radius = FOLDER_STAR_RADIUS * (1f + (rings - i) * 0.2f) * pulse
+
             drawScope.drawCircle(
                 color = starColor.copy(alpha = alpha),
                 radius = radius,
                 center = position
             )
         }
-        
+
         drawScope.drawCircle(
             color = starColor,
-            radius = FOLDER_STAR_RADIUS * 0.8f,
+            radius = FOLDER_STAR_RADIUS * 0.85f,
             center = position
         )
-        
+
         drawScope.drawCircle(
-            color = Color(0xFFFFF8DC).copy(alpha = 0.6f),
-            radius = FOLDER_STAR_RADIUS * 0.5f,
+            color = Color(0xFFFFF8DC).copy(alpha = 0.7f),
+            radius = FOLDER_STAR_RADIUS * 0.55f,
             center = position
         )
     }
-    
+
     private fun drawFolderPlanets(
         drawScope: DrawScope,
         center: Offset,
@@ -74,91 +75,53 @@ object FolderRenderer {
         planetCount: Int
     ) {
         if (planetCount <= 0) return
-        
+
         val orbitConfigs = calculateOrbitDistribution(planetCount)
-        
+
         orbitConfigs.forEachIndexed { orbitIndex, config ->
             val orbitRadius = MIN_ORBIT_RADIUS + (orbitIndex * ORBIT_SPACING)
-            
+
             drawOrbitPath(drawScope, center, orbitRadius)
-            
+
             config.planets.forEachIndexed { planetIndex, planetInfo ->
                 val angle = planetInfo.angle + animationTime * planetInfo.speed
                 val x = center.x + cos(angle).toFloat() * orbitRadius
                 val y = center.y + sin(angle).toFloat() * orbitRadius
-                
+
                 val planetPosition = Offset(x, y)
                 drawFolderPlanet(drawScope, planetPosition, FOLDER_PLANET_RADIUS, planetInfo.color)
             }
         }
     }
-    
+
     private fun calculateOrbitDistribution(planetCount: Int): List<OrbitConfig> {
         val orbits = mutableListOf<OrbitConfig>()
-        
-        when {
-            planetCount <= 2 -> {
-                val planets = (0 until planetCount).map { index ->
-                    PlanetInfo(
-                        angle = (index * 2 * PI / planetCount).toFloat(),
-                        speed = 0.8f + (index * 0.2f),
-                        color = PLANET_COLORS[index % PLANET_COLORS.size]
-                    )
-                }
-                orbits.add(OrbitConfig(planets))
+        val maxPlanetsPerOrbit = 2
+
+        var remainingPlanets = planetCount
+        var currentPlanetIndex = 0
+
+        while (remainingPlanets > 0) {
+            val planetsInThisOrbit = minOf(maxPlanetsPerOrbit, remainingPlanets)
+            val planets = (0 until planetsInThisOrbit).map { index ->
+                val globalIndex = currentPlanetIndex + index
+                val angleSpacing = 2 * PI / planetsInThisOrbit
+
+                PlanetInfo(
+                    angle = (index * angleSpacing).toFloat(),
+                    speed = 1.8f + (orbits.size * 0.6f) + (index * 0.3f),
+                    color = PLANET_COLORS[globalIndex % PLANET_COLORS.size]
+                )
             }
-            planetCount <= 4 -> {
-                val innerPlanets = (0 until 2).map { index ->
-                    PlanetInfo(
-                        angle = (index * PI).toFloat(),
-                        speed = 1.2f + (index * 0.3f),
-                        color = PLANET_COLORS[index % PLANET_COLORS.size]
-                    )
-                }
-                orbits.add(OrbitConfig(innerPlanets))
-                
-                val outerPlanets = (2 until planetCount).map { index ->
-                    PlanetInfo(
-                        angle = ((index - 2) * 2 * PI / (planetCount - 2)).toFloat(),
-                        speed = 0.9f + ((index - 2) * 0.2f),
-                        color = PLANET_COLORS[index % PLANET_COLORS.size]
-                    )
-                }
-                orbits.add(OrbitConfig(outerPlanets))
-            }
-            else -> {
-                val innerPlanets = (0 until 2).map { index ->
-                    PlanetInfo(
-                        angle = (index * PI).toFloat(),
-                        speed = 1.5f + (index * 0.4f),
-                        color = PLANET_COLORS[index % PLANET_COLORS.size]
-                    )
-                }
-                orbits.add(OrbitConfig(innerPlanets))
-                
-                val middlePlanets = (2 until 4).map { index ->
-                    PlanetInfo(
-                        angle = ((index - 2) * PI).toFloat(),
-                        speed = 1.1f + ((index - 2) * 0.3f),
-                        color = PLANET_COLORS[index % PLANET_COLORS.size]
-                    )
-                }
-                orbits.add(OrbitConfig(middlePlanets))
-                
-                val outerPlanets = (4 until planetCount).map { index ->
-                    PlanetInfo(
-                        angle = ((index - 4) * 2 * PI / (planetCount - 4)).toFloat(),
-                        speed = 0.8f + ((index - 4) * 0.2f),
-                        color = PLANET_COLORS[index % PLANET_COLORS.size]
-                    )
-                }
-                orbits.add(OrbitConfig(outerPlanets))
-            }
+
+            orbits.add(OrbitConfig(planets))
+            remainingPlanets -= planetsInThisOrbit
+            currentPlanetIndex += planetsInThisOrbit
         }
-        
+
         return orbits
     }
-    
+
     private fun drawOrbitPath(
         drawScope: DrawScope,
         center: Offset,
@@ -171,21 +134,21 @@ object FolderRenderer {
             val x = center.x + cos(angle).toFloat() * radius
             val y = center.y + sin(angle).toFloat() * radius
             val point = Offset(x, y)
-            
+
             if (i == 0) {
                 path.moveTo(point.x, point.y)
             } else {
                 path.lineTo(point.x, point.y)
             }
         }
-        
+
         drawScope.drawPath(
             path = path,
-            color = Color.White.copy(alpha = 0.1f),
-            style = Stroke(width = 1f)
+            color = Color.White.copy(alpha = 0.12f),
+            style = Stroke(width = 1.5f)
         )
     }
-    
+
     private fun drawFolderPlanet(
         drawScope: DrawScope,
         position: Offset,
@@ -193,30 +156,30 @@ object FolderRenderer {
         color: Color
     ) {
         val shadowColor = color.copy(alpha = 0.6f)
-        
+
         drawScope.drawCircle(
             color = shadowColor,
             radius = radius,
             center = position + Offset(radius * 0.1f, radius * 0.1f)
         )
-        
+
         drawScope.drawCircle(
             color = color,
             radius = radius,
             center = position
         )
-        
+
         drawScope.drawCircle(
-            color = Color.White.copy(alpha = 0.3f),
-            radius = radius * 0.3f,
+            color = Color.White.copy(alpha = 0.4f),
+            radius = radius * 0.35f,
             center = position - Offset(radius * 0.3f, radius * 0.3f)
         )
     }
-    
+
     private data class OrbitConfig(
         val planets: List<PlanetInfo>
     )
-    
+
     private data class PlanetInfo(
         val angle: Float,
         val speed: Float,
