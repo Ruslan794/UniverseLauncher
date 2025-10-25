@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.rr.universelauncher.domain.manager.AppDataManager
 import de.rr.universelauncher.domain.model.AppInfo
+import de.rr.universelauncher.domain.repository.AppRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -12,7 +13,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LauncherSettingsViewModel @Inject constructor(
-    private val appDataManager: AppDataManager
+    private val appDataManager: AppDataManager,
+    private val appRepository: AppRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LauncherSettingsUiState())
@@ -67,6 +69,23 @@ class LauncherSettingsViewModel @Inject constructor(
 
     fun setSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun clearSearchQuery() {
+        _uiState.update { it.copy(searchQuery = "") }
+    }
+
+    fun launchApp(packageName: String) {
+        viewModelScope.launch {
+            try {
+                appRepository.trackAppLaunch(packageName)
+                appRepository.launchApp(packageName)
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = "Failed to launch app: ${e.message}")
+                }
+            }
+        }
     }
 
     fun toggleAppSelection(packageName: String) {

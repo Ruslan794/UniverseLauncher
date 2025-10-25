@@ -133,4 +133,7 @@ class AppDataManager @Inject constructor(
         launcherSettingsRepository.updateFolderName(folderId, newName)
         _folders.value = _folders.value.map { if (it.id == folderId) it.copy(name = newName) else it }
     }
+
+    fun clearSettingsSearch() {
+    }
 }

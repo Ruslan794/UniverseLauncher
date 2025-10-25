@@ -13,13 +13,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.rr.universelauncher.presentation.theme.SpaceBackground
 import de.rr.universelauncher.presentation.universe.components.UniverseCanvas
 import de.rr.universelauncher.presentation.settings.LauncherSettingsScreen
 import de.rr.universelauncher.R
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun UniverseScreen(
@@ -30,6 +35,19 @@ fun UniverseScreen(
     onShowFolderOverview: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var currentTime by remember { mutableStateOf("") }
+    var currentDate by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = Calendar.getInstance()
+            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val dateFormat = SimpleDateFormat("EEEE, MMM dd", Locale.getDefault())
+            currentTime = timeFormat.format(now.time)
+            currentDate = dateFormat.format(now.time)
+            delay(1000)
+        }
+    }
 
     LaunchedEffect(folderId) {
         viewModel.setFolderId(folderId)
@@ -50,6 +68,28 @@ fun UniverseScreen(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.3f))
         )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            contentAlignment = Alignment.TopStart
+        ) {
+            Column {
+                Text(
+                    text = currentTime,
+                    color = Color.White,
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Light
+                )
+                Text(
+                    text = currentDate,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        }
         when {
             uiState.isLoading -> {
                 Box(
@@ -90,7 +130,10 @@ fun UniverseScreen(
 
         if (uiState.showSettings) {
             LauncherSettingsScreen(
-                onClose = viewModel::onCloseSettings,
+                onClose = {
+                    viewModel.onCloseSettings()
+                    viewModel.clearSettingsSearch()
+                },
                 folderId = uiState.folderId
             )
         }

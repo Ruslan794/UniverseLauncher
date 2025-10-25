@@ -71,7 +71,8 @@ fun LauncherSettingsScreen(
                 onMoveUp = viewModel::moveAppUp,
                 onMoveDown = viewModel::moveAppDown,
                 onSetPosition = viewModel::setAppPosition,
-                onAppSettings = { app -> showAppSettings = app }
+                onAppSettings = { app -> showAppSettings = app },
+                onLaunchApp = viewModel::launchApp
             )
         }
     }

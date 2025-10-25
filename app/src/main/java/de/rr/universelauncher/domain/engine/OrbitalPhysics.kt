@@ -90,15 +90,14 @@ object OrbitalPhysics {
         val orbitalBodies = sortedApps.mapIndexed { index, app ->
             val orbitDuration = app.customOrbitSpeed ?: (15f + (index * 3f))
             val sizeCategory = app.customPlanetSize ?: PlanetSize.MEDIUM
-            val angleSpacing = 360f / sortedApps.size
-            val startAngle = (index * angleSpacing) % 360f
+            val randomAngle = (0..359).random().toFloat()
             val color = planetColors[index % planetColors.size]
 
             val orbitalConfig = OrbitalConfig(
                 distance = 0f,
                 orbitDuration = orbitDuration,
                 sizeCategory = sizeCategory,
-                startAngle = startAngle,
+                startAngle = randomAngle,
                 color = color,
                 ellipseRatio = 1.3f
             )

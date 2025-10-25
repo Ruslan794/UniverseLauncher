@@ -1,6 +1,7 @@
 package de.rr.universelauncher.presentation.settings.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,6 +41,7 @@ fun AppSelectionList(
     onMoveDown: (String) -> Unit,
     onSetPosition: (String, Int) -> Unit,
     onAppSettings: (AppInfo) -> Unit,
+    onLaunchApp: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isMaxSelected = selectedApps.size >= 6
@@ -108,7 +110,8 @@ fun AppSelectionList(
                     onMoveUp = { onMoveUp(app.packageName) },
                     onMoveDown = { onMoveDown(app.packageName) },
                     onSetPosition = { newPos -> onSetPosition(app.packageName, newPos) },
-                    onSettings = { onAppSettings(app) }
+                    onSettings = { onAppSettings(app) },
+                    onLaunchApp = { onLaunchApp(app.packageName) }
                 )
             }
         }
@@ -126,7 +129,8 @@ private fun AppSelectionItem(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onSetPosition: (Int) -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onLaunchApp: () -> Unit
 ) {
     var positionInput by remember { mutableStateOf("") }
 
@@ -138,10 +142,11 @@ private fun AppSelectionItem(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                if (isSelected) Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.08f),
+                if (isSelected) Color.White.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.12f),
                 RoundedCornerShape(12.dp)
             )
-            .padding(12.dp),
+            .padding(12.dp)
+            .clickable { onLaunchApp() },
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (isSelected) {
