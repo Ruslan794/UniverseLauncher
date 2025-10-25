@@ -12,4 +12,5 @@ object RenderingConstants {
     const val PLANET_SIZE_BIG_MODIFIER = 1.2f
     const val PLANET_SIZE_MEDIUM_MODIFIER = 1.0f
     const val PLANET_SIZE_SMALL_MODIFIER = 0.75f
+    const val ORBIT_TILT_ANGLE = 15f
 }

@@ -54,14 +54,21 @@ object OrbitalPhysics {
         val radiusX = config.distance * config.ellipseRatio
         val radiusY = config.distance
 
+        val tiltAngle = RenderingConstants.ORBIT_TILT_ANGLE * PI / 180.0
+        val cosTilt = cos(tiltAngle).toFloat()
+        val sinTilt = sin(tiltAngle).toFloat()
+
         for (i in 0 until numPoints) {
             val timeRatio = i.toFloat() / numPoints
             val angle = timeRatio * 2 * PI + Math.toRadians(config.startAngle.toDouble())
 
-            val x = radiusX * cos(angle).toFloat()
-            val y = radiusY * sin(angle).toFloat()
+            val offsetX = radiusX * cos(angle).toFloat()
+            val offsetY = radiusY * sin(angle).toFloat()
 
-            points.add(Pair(x, y))
+            val rotatedX = offsetX * cosTilt - offsetY * sinTilt
+            val rotatedY = offsetX * sinTilt + offsetY * cosTilt
+
+            points.add(Pair(rotatedX, rotatedY))
         }
 
         return points

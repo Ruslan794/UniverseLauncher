@@ -11,6 +11,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import de.rr.universelauncher.domain.engine.OrbitalPhysics
 import de.rr.universelauncher.domain.engine.PlanetRenderingEngine
+import de.rr.universelauncher.domain.engine.RenderingConstants
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
 import de.rr.universelauncher.presentation.universe.components.cache.rememberIconCache
@@ -152,8 +153,18 @@ fun UniverseCanvas(
                                 val cosAngle = kotlin.math.cos(newAngle).toFloat()
                                 val sinAngle = kotlin.math.sin(newAngle).toFloat()
                                 
-                                val x = centerX + orbitDistance * cosAngle * config.ellipseRatio
-                                val y = centerY + orbitDistance * sinAngle
+                                val offsetX = orbitDistance * cosAngle * config.ellipseRatio
+                                val offsetY = orbitDistance * sinAngle
+                                
+                                val tiltAngle = RenderingConstants.ORBIT_TILT_ANGLE * kotlin.math.PI / 180.0
+                                val cosTilt = kotlin.math.cos(tiltAngle).toFloat()
+                                val sinTilt = kotlin.math.sin(tiltAngle).toFloat()
+                                
+                                val rotatedX = offsetX * cosTilt - offsetY * sinTilt
+                                val rotatedY = offsetX * sinTilt + offsetY * cosTilt
+                                
+                                val x = centerX + rotatedX
+                                val y = centerY + rotatedY
                                 val planetCenter = Offset(x, y)
 
                                 val basePlanetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory]

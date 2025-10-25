@@ -195,13 +195,29 @@ object PlanetRenderingEngine {
         val radiusX = orbitDistance * ellipseRatio
         val radiusY = orbitDistance
         
-        val rect = androidx.compose.ui.geometry.Rect(
-            center.x - radiusX,
-            center.y - radiusY,
-            center.x + radiusX,
-            center.y + radiusY
-        )
-        path.addOval(rect)
+        val tiltAngle = RenderingConstants.ORBIT_TILT_ANGLE * PI / 180.0
+        val cosTilt = cos(tiltAngle).toFloat()
+        val sinTilt = sin(tiltAngle).toFloat()
+        
+        val numPoints = 100
+        for (i in 0 until numPoints) {
+            val angle = (i.toFloat() / numPoints) * 2 * PI
+            val offsetX = radiusX * cos(angle).toFloat()
+            val offsetY = radiusY * sin(angle).toFloat()
+            
+            val rotatedX = offsetX * cosTilt - offsetY * sinTilt
+            val rotatedY = offsetX * sinTilt + offsetY * cosTilt
+            
+            val x = center.x + rotatedX
+            val y = center.y + rotatedY
+            
+            if (i == 0) {
+                path.moveTo(x, y)
+            } else {
+                path.lineTo(x, y)
+            }
+        }
+        path.close()
         
         drawScope.drawPath(
             path = path,
@@ -242,8 +258,18 @@ object PlanetRenderingEngine {
         val cosAngle = cos(angle).toFloat()
         val sinAngle = sin(angle).toFloat()
         
-        val x = center.x + orbitDistance * cosAngle * ellipseRatio
-        val y = center.y + orbitDistance * sinAngle
+        val offsetX = orbitDistance * cosAngle * ellipseRatio
+        val offsetY = orbitDistance * sinAngle
+        
+        val tiltAngle = RenderingConstants.ORBIT_TILT_ANGLE * PI / 180.0
+        val cosTilt = cos(tiltAngle).toFloat()
+        val sinTilt = sin(tiltAngle).toFloat()
+        
+        val rotatedX = offsetX * cosTilt - offsetY * sinTilt
+        val rotatedY = offsetX * sinTilt + offsetY * cosTilt
+        
+        val x = center.x + rotatedX
+        val y = center.y + rotatedY
         
         return Offset(x, y)
     }

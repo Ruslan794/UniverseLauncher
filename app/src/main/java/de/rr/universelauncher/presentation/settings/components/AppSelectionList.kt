@@ -90,7 +90,7 @@ fun AppSelectionList(
         )
 
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(filteredApps, key = { it.packageName }) { app ->
                 val isAppSelected = app.packageName in selectedApps
