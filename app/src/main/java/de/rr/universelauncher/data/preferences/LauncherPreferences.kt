@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
+import de.rr.universelauncher.domain.model.FolderData
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -163,5 +164,50 @@ class LauncherPreferences @Inject constructor(
             sizesString.find { it.startsWith("$packageName:") }
                 ?.substringAfter(":")
         }.first()
+    }
+
+    fun getFolders(): Flow<List<FolderData>> = dataStore.data.map { preferences ->
+        val folderStrings = preferences[AppSettings.FOLDER_DATA] ?: emptySet()
+        folderStrings.mapNotNull { folderString ->
+            val parts = folderString.split(":")
+            if (parts.size == 3) {
+                val id = parts[0]
+                val appPackages = parts[1].split(",").filter { it.isNotEmpty() }.toSet()
+                val name = parts[2]
+                FolderData(id, name, appPackages)
+            } else null
+        }
+    }
+
+    suspend fun saveFolders(folders: List<FolderData>) {
+        try {
+            dataStore.edit { preferences ->
+                val folderStrings = folders.map { folder ->
+                    "${folder.id}:${folder.appPackageNames.joinToString(",")}:${folder.name}"
+                }.toSet()
+                preferences[AppSettings.FOLDER_DATA] = folderStrings
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to save folders", e)
+            throw e
+        }
+    }
+
+    suspend fun updateFolderName(folderId: String, newName: String) {
+        try {
+            dataStore.edit { preferences ->
+                val currentFolders = preferences[AppSettings.FOLDER_DATA] ?: emptySet()
+                val updatedFolders = currentFolders.map { folderString ->
+                    val parts = folderString.split(":")
+                    if (parts.size == 3 && parts[0] == folderId) {
+                        "${parts[0]}:${parts[1]}:$newName"
+                    } else folderString
+                }.toSet()
+                preferences[AppSettings.FOLDER_DATA] = updatedFolders
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to update folder name", e)
+            throw e
+        }
     }
 }

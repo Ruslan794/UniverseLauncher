@@ -37,7 +37,8 @@ class UniverseViewModel @Inject constructor(
             orbitalSystem = emptyOrbitalSystemWithDefaultStar,
             isLoading = true,
             error = null,
-            showSettings = false
+            showSettings = false,
+            folderId = null
         )
     )
     val uiState: StateFlow<UniverseUiState> = _uiState.asStateFlow()
@@ -50,19 +51,34 @@ class UniverseViewModel @Inject constructor(
         observeSelectedAppsChanges()
     }
 
+    fun setFolderId(folderId: String?) {
+        _uiState.update { it.copy(folderId = folderId) }
+        loadApps()
+    }
+
+    private suspend fun getFolderAppPackages(folderId: String): Set<String> {
+        val folders = launcherSettingsRepository.getFolders().first()
+        return folders.find { it.id == folderId }?.appPackageNames ?: emptySet()
+    }
+
     private fun loadApps() {
         viewModelScope.launch {
             try {
                 _uiState.update { it.copy(isLoading = true, error = null) }
 
                 val allApps = appRepository.getInstalledAppsWithLaunchCounts()
-                val selectedApps = launcherSettingsRepository.getSelectedApps().first()
-
-                val finalSelectedApps = selectedApps.ifEmpty {
-                    val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
-                    val topAppPackages = topApps.map { it.packageName }.toSet()
-                    launcherSettingsRepository.setSelectedApps(topAppPackages)
-                    topAppPackages
+                val currentFolderId = _uiState.value.folderId
+                
+                val finalSelectedApps = if (currentFolderId != null) {
+                    getFolderAppPackages(currentFolderId)
+                } else {
+                    val selectedApps = launcherSettingsRepository.getSelectedApps().first()
+                    selectedApps.ifEmpty {
+                        val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
+                        val topAppPackages = topApps.map { it.packageName }.toSet()
+                        launcherSettingsRepository.setSelectedApps(topAppPackages)
+                        topAppPackages
+                    }
                 }
 
                 val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
@@ -131,7 +147,7 @@ class UniverseViewModel @Inject constructor(
                     }
                 }
                 .collect { selectedApps ->
-                    if (selectedApps.isNotEmpty() && selectedApps != _uiState.value.orbitalSystem.orbitalBodies.map { it.appInfo.packageName }.toSet()) {
+                    if (selectedApps.isNotEmpty() && selectedApps != _uiState.value.orbitalSystem.orbitalBodies.map { it.appInfo.packageName }.toSet() && _uiState.value.folderId == null) {
                         loadAppsWithSelectedApps(selectedApps)
                     }
                 }

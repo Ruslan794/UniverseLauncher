@@ -1,39 +1,29 @@
-package de.rr.universelauncher.presentation.universe
+package de.rr.universelauncher.presentation.folderoverview
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import de.rr.universelauncher.presentation.theme.SpaceBackground
-import de.rr.universelauncher.presentation.universe.components.UniverseCanvas
-import de.rr.universelauncher.presentation.settings.LauncherSettingsScreen
+import de.rr.universelauncher.presentation.folderoverview.components.FolderCanvas
 import de.rr.universelauncher.R
 
 @Composable
-fun UniverseScreen(
+fun FolderOverviewScreen(
     modifier: Modifier = Modifier,
-    viewModel: UniverseViewModel = hiltViewModel(),
-    folderId: String? = null,
-    onBackPressed: () -> Unit = {},
-    onShowFolderOverview: () -> Unit = {}
+    viewModel: FolderOverviewViewModel = hiltViewModel(),
+    onFolderSelected: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(folderId) {
-        viewModel.setFolderId(folderId)
-    }
 
     Box(
         modifier = modifier.fillMaxSize()
@@ -50,6 +40,7 @@ fun UniverseScreen(
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.3f))
         )
+        
         when {
             uiState.isLoading -> {
                 Box(
@@ -73,27 +64,26 @@ fun UniverseScreen(
             }
 
             else -> {
-                UniverseCanvas(
-                    orbitalSystem = uiState.orbitalSystem,
-                    onPlanetTapped = { orbitalBody, position, size -> 
-                        viewModel.onPlanetTapped(orbitalBody, position, size)
+                FolderCanvas(
+                    folders = uiState.folders,
+                    onFolderTapped = { folderId ->
+                        onFolderSelected(folderId)
                     },
-                    onStarTapped = viewModel::onStarTapped,
-                    onCanvasSizeChanged = viewModel::updateCanvasSize,
-                    isPaused = uiState.showSettings,
-                    onSwipeFromLeft = onShowFolderOverview,
+                    onFolderNameTapped = { folderId ->
+                        viewModel.onFolderNameTapped(folderId)
+                    },
+                    onScreenSizeChanged = viewModel::updateScreenSize,
+                    editingFolderId = uiState.editingFolderId,
+                    onUpdateFolderName = { folderId, newName ->
+                        viewModel.updateFolderName(folderId, newName)
+                    },
+                    onCancelEditing = {
+                        viewModel.cancelEditing()
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
-
         }
-
-        if (uiState.showSettings) {
-            LauncherSettingsScreen(
-                onClose = viewModel::onCloseSettings
-            )
-        }
-
+        
     }
 }
-

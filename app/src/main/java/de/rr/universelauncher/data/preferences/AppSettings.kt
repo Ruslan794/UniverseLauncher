@@ -8,4 +8,5 @@ object AppSettings {
     val APP_ORDER = stringSetPreferencesKey("app_order")
     val APP_ORBIT_SPEEDS = stringSetPreferencesKey("app_orbit_speeds")
     val APP_PLANET_SIZES = stringSetPreferencesKey("app_planet_sizes")
+    val FOLDER_DATA = stringSetPreferencesKey("folder_data")
 }

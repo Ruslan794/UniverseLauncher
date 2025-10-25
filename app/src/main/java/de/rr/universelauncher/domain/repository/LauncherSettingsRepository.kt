@@ -1,6 +1,7 @@
 package de.rr.universelauncher.domain.repository
 
 import kotlinx.coroutines.flow.Flow
+import de.rr.universelauncher.domain.model.FolderData
 
 interface LauncherSettingsRepository {
     fun getSelectedApps(): Flow<Set<String>>
@@ -16,4 +17,7 @@ interface LauncherSettingsRepository {
     fun getAppPlanetSizes(): Flow<Map<String, String>>
     suspend fun setAppPlanetSize(packageName: String, size: String)
     suspend fun getAppPlanetSize(packageName: String): String?
+    fun getFolders(): Flow<List<FolderData>>
+    suspend fun saveFolders(folders: List<FolderData>)
+    suspend fun updateFolderName(folderId: String, newName: String)
 }

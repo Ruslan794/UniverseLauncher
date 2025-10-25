@@ -30,6 +30,7 @@ fun UniverseCanvas(
     onStarTapped: () -> Unit,
     onCanvasSizeChanged: (androidx.compose.ui.geometry.Size) -> Unit = {},
     isPaused: Boolean = false,
+    onSwipeFromLeft: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val iconCache = rememberIconCache(orbitalSystem)
@@ -139,19 +140,12 @@ fun UniverseCanvas(
                                     sizeCalculation.radialSlotSize / 2f
                                 
                                 val config = orbitalBody.orbitalConfig
-                                val baseOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
                                 val planetKey = orbitalBody.appInfo.packageName
                                 
-                                val baseAngularVelocity = 2 * kotlin.math.PI / baseOrbitDuration
-                                val deltaTime = 0.016f * speedMultiplier
-                                
                                 val currentAngle = PlanetRenderingEngine.getPlanetAngle(planetKey) ?: (config.startAngle * kotlin.math.PI / 180f)
-                                val depthSpeed = PlanetRenderingEngine.calculateDepthSpeed(currentAngle)
-                                val newAngle = currentAngle + baseAngularVelocity * depthSpeed * deltaTime
-                                PlanetRenderingEngine.setPlanetAngle(planetKey, newAngle)
                                 
-                                val cosAngle = kotlin.math.cos(newAngle).toFloat()
-                                val sinAngle = kotlin.math.sin(newAngle).toFloat()
+                                val cosAngle = kotlin.math.cos(currentAngle).toFloat()
+                                val sinAngle = kotlin.math.sin(currentAngle).toFloat()
                                 
                                 // Calculate ellipse radii first (same as in drawOrbitPath)
                                 val radiusX = orbitDistance * config.ellipseRatio
@@ -175,7 +169,7 @@ fun UniverseCanvas(
                                 val basePlanetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory]
                                     ?: sizeCalculation.sizeLookup[de.rr.universelauncher.domain.model.PlanetSize.MEDIUM]!!
                                 
-                                val depthScale = PlanetRenderingEngine.calculateDepthScale(newAngle)
+                                val depthScale = PlanetRenderingEngine.calculateDepthScale(currentAngle)
                                 val planetRadius = basePlanetRadius * depthScale
 
                                 val distance = (offset - planetCenter).getDistance()
@@ -192,6 +186,7 @@ fun UniverseCanvas(
             .pointerInput(orbitalSystem) {
                 var dragStartPosition: Offset? = null
                 var isSwipeFromRight = false
+                var isSwipeFromLeft = false
                 var lastTapTime = 0L
                 var lastTapPosition: Offset? = null
                 val DRAG_THRESHOLD = 20f
@@ -202,16 +197,21 @@ fun UniverseCanvas(
                         val centerY = size.height / 2f
 
                         isSwipeFromRight = offset.x > centerX
+                        isSwipeFromLeft = offset.x < centerX
 
-                        if (isSwipeFromRight) {
+                        if (isSwipeFromRight || isSwipeFromLeft) {
                             dragStartPosition = offset
                         }
                     },
                     onDrag = { change, _ ->
-                        if (isSwipeFromRight && dragStartPosition != null) {
-                            val totalDeltaY = change.position.y - dragStartPosition!!.y
-
-                            if (totalDeltaY > 50f) {
+                        if (dragStartPosition != null) {
+                            val deltaX = change.position.x - dragStartPosition!!.x
+                            val deltaY = change.position.y - dragStartPosition!!.y
+                            
+                            if (isSwipeFromLeft && deltaX > 100f && abs(deltaY) < 100f) {
+                                onSwipeFromLeft()
+                                isSwipeFromLeft = false
+                            } else if (isSwipeFromRight && deltaY > 50f) {
                                 startSpeedBoost()
                                 isSwipeFromRight = false
                             }
@@ -241,6 +241,7 @@ fun UniverseCanvas(
 
                         dragStartPosition = null
                         isSwipeFromRight = false
+                        isSwipeFromLeft = false
                     }
                 )
             }

@@ -6,5 +6,6 @@ data class UniverseUiState(
     val orbitalSystem: OrbitalSystem,
     val isLoading: Boolean,
     val error: String?,
-    val showSettings: Boolean
+    val showSettings: Boolean,
+    val folderId: String?
 )

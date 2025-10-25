@@ -41,4 +41,12 @@ class LauncherSettingsRepositoryImpl @Inject constructor(
 
     override suspend fun getAppPlanetSize(packageName: String): String? = 
         launcherPreferences.getAppPlanetSize(packageName)
+
+    override fun getFolders() = launcherPreferences.getFolders()
+
+    override suspend fun saveFolders(folders: List<de.rr.universelauncher.domain.model.FolderData>) = 
+        launcherPreferences.saveFolders(folders)
+
+    override suspend fun updateFolderName(folderId: String, newName: String) = 
+        launcherPreferences.updateFolderName(folderId, newName)
 }
