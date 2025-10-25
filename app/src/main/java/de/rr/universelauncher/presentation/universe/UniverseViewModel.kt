@@ -67,7 +67,7 @@ class UniverseViewModel @Inject constructor(
 
                 val allApps = appRepository.getInstalledAppsWithLaunchCounts()
                 val currentFolderId = _uiState.value.folderId
-                
+
                 val finalSelectedApps = if (currentFolderId != null) {
                     val folderSelectedApps = launcherSettingsRepository.getFolderSelectedApps(currentFolderId).first()
                     if (folderSelectedApps.isNotEmpty()) {
@@ -85,13 +85,38 @@ class UniverseViewModel @Inject constructor(
                     }
                 }
 
-                val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
+                val orbitSpeeds = if (currentFolderId != null) {
+                    launcherSettingsRepository.getFolderAppOrbitSpeeds(currentFolderId).first()
+                } else {
+                    launcherSettingsRepository.getAppOrbitSpeeds().first()
+                }
+
+                val planetSizes = if (currentFolderId != null) {
+                    launcherSettingsRepository.getFolderAppPlanetSizes(currentFolderId).first()
+                } else {
+                    launcherSettingsRepository.getAppPlanetSizes().first()
+                }
+
+                val filteredApps = allApps.filter { it.packageName in finalSelectedApps }.map { app ->
+                    val customPlanetSize = when (planetSizes[app.packageName]) {
+                        "SMALL" -> de.rr.universelauncher.domain.model.PlanetSize.SMALL
+                        "MEDIUM" -> de.rr.universelauncher.domain.model.PlanetSize.MEDIUM
+                        "LARGE" -> de.rr.universelauncher.domain.model.PlanetSize.LARGE
+                        else -> null
+                    }
+
+                    app.copy(
+                        customOrbitSpeed = orbitSpeeds[app.packageName],
+                        customPlanetSize = customPlanetSize
+                    )
+                }
 
                 val appOrder = if (currentFolderId != null) {
                     launcherSettingsRepository.getFolderAppOrder(currentFolderId).first()
                 } else {
                     launcherSettingsRepository.getAppOrder().first()
                 }
+
                 val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps, appOrder)
                 val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
                     orbitalSystem,

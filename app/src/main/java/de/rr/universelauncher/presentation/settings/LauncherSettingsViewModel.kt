@@ -49,59 +49,58 @@ class LauncherSettingsViewModel @Inject constructor(
                 val currentFolderId = _uiState.value.folderId
 
                 if (currentFolderId != null) {
-                    combine(
-                        launcherSettingsRepository.getFolderSelectedApps(currentFolderId),
-                        launcherSettingsRepository.getFolderAppOrder(currentFolderId)
-                    ) { selectedApps, appOrder ->
-                        Pair(selectedApps, appOrder)
+                    val folderData = launcherSettingsRepository.getFolders().first()
+                    val folder = folderData.find { it.id == currentFolderId }
+                    val defaultFolderApps = folder?.appPackageNames ?: emptySet()
+
+                    var selectedApps = launcherSettingsRepository.getFolderSelectedApps(currentFolderId).first()
+                    var appOrder = launcherSettingsRepository.getFolderAppOrder(currentFolderId).first()
+
+                    if (selectedApps.isEmpty() && defaultFolderApps.isNotEmpty()) {
+                        selectedApps = defaultFolderApps
+                        launcherSettingsRepository.setFolderSelectedApps(currentFolderId, selectedApps)
+
+                        val initialOrder = selectedApps.mapIndexed { index, packageName ->
+                            packageName to (index + 1)
+                        }.toMap()
+                        appOrder = initialOrder
+                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, appOrder)
                     }
-                        .catch { e ->
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = e.message ?: "Failed to load folder settings"
-                                )
-                            }
-                        }
-                        .take(1)
-                        .collect { (selectedApps, appOrder) ->
-                            _uiState.update {
-                                it.copy(
-                                    allApps = allApps,
-                                    selectedApps = selectedApps,
-                                    appOrder = appOrder,
-                                    isLoading = false,
-                                    error = null
-                                )
-                            }
-                        }
+
+                    _uiState.update {
+                        it.copy(
+                            allApps = allApps,
+                            selectedApps = selectedApps,
+                            appOrder = appOrder,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
                 } else {
-                    combine(
-                        launcherSettingsRepository.getSelectedApps(),
-                        launcherSettingsRepository.getAppOrder()
-                    ) { selectedApps, appOrder ->
-                        Pair(selectedApps, appOrder)
+                    var selectedApps = launcherSettingsRepository.getSelectedApps().first()
+                    var appOrder = launcherSettingsRepository.getAppOrder().first()
+
+                    if (selectedApps.isEmpty()) {
+                        val topApps = allApps.sortedByDescending { it.launchCount }.take(6)
+                        selectedApps = topApps.map { it.packageName }.toSet()
+                        launcherSettingsRepository.setSelectedApps(selectedApps)
+
+                        val initialOrder = topApps.mapIndexed { index, app ->
+                            app.packageName to (index + 1)
+                        }.toMap()
+                        appOrder = initialOrder
+                        launcherSettingsRepository.setAppOrder(appOrder)
                     }
-                        .catch { e ->
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = e.message ?: "Failed to load selected apps"
-                                )
-                            }
-                        }
-                        .take(1)
-                        .collect { (selectedApps, appOrder) ->
-                            _uiState.update {
-                                it.copy(
-                                    allApps = allApps,
-                                    selectedApps = selectedApps,
-                                    appOrder = appOrder,
-                                    isLoading = false,
-                                    error = null
-                                )
-                            }
-                        }
+
+                    _uiState.update {
+                        it.copy(
+                            allApps = allApps,
+                            selectedApps = selectedApps,
+                            appOrder = appOrder,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -141,6 +140,13 @@ class LauncherSettingsViewModel @Inject constructor(
                         launcherSettingsRepository.setSelectedApps(newSelected)
                         launcherSettingsRepository.setAppOrder(currentOrder)
                     }
+
+                    _uiState.update {
+                        it.copy(
+                            selectedApps = newSelected,
+                            appOrder = currentOrder
+                        )
+                    }
                 } else {
                     if (currentSelected.size >= 6) {
                         _uiState.update {
@@ -159,6 +165,13 @@ class LauncherSettingsViewModel @Inject constructor(
                     } else {
                         launcherSettingsRepository.setSelectedApps(newSelected)
                         launcherSettingsRepository.setAppOrder(currentOrder)
+                    }
+
+                    _uiState.update {
+                        it.copy(
+                            selectedApps = newSelected,
+                            appOrder = currentOrder
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -187,6 +200,10 @@ class LauncherSettingsViewModel @Inject constructor(
                     } else {
                         launcherSettingsRepository.setAppOrder(currentOrder)
                     }
+
+                    _uiState.update {
+                        it.copy(appOrder = currentOrder)
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -214,6 +231,10 @@ class LauncherSettingsViewModel @Inject constructor(
                         launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
                     } else {
                         launcherSettingsRepository.setAppOrder(currentOrder)
+                    }
+
+                    _uiState.update {
+                        it.copy(appOrder = currentOrder)
                     }
                 }
             } catch (e: Exception) {
@@ -255,6 +276,10 @@ class LauncherSettingsViewModel @Inject constructor(
                     } else {
                         launcherSettingsRepository.setAppOrder(newOrder)
                     }
+
+                    _uiState.update {
+                        it.copy(appOrder = newOrder)
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -284,6 +309,18 @@ class LauncherSettingsViewModel @Inject constructor(
                 } else {
                     launcherSettingsRepository.setAppOrbitSpeed(packageName, speed)
                 }
+
+                val allApps = _uiState.value.allApps
+                val updatedApps = allApps.map { app ->
+                    if (app.packageName == packageName) {
+                        app.copy(customOrbitSpeed = speed)
+                    } else {
+                        app
+                    }
+                }
+                _uiState.update {
+                    it.copy(allApps = updatedApps)
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Failed to set orbit speed")
@@ -300,6 +337,25 @@ class LauncherSettingsViewModel @Inject constructor(
                     launcherSettingsRepository.setFolderAppPlanetSize(currentFolderId, packageName, size)
                 } else {
                     launcherSettingsRepository.setAppPlanetSize(packageName, size)
+                }
+
+                val planetSize = when (size) {
+                    "SMALL" -> de.rr.universelauncher.domain.model.PlanetSize.SMALL
+                    "MEDIUM" -> de.rr.universelauncher.domain.model.PlanetSize.MEDIUM
+                    "LARGE" -> de.rr.universelauncher.domain.model.PlanetSize.LARGE
+                    else -> null
+                }
+
+                val allApps = _uiState.value.allApps
+                val updatedApps = allApps.map { app ->
+                    if (app.packageName == packageName) {
+                        app.copy(customPlanetSize = planetSize)
+                    } else {
+                        app
+                    }
+                }
+                _uiState.update {
+                    it.copy(allApps = updatedApps)
                 }
             } catch (e: Exception) {
                 _uiState.update {

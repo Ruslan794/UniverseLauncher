@@ -59,19 +59,19 @@ class FolderOverviewViewModel @Inject constructor(
 
                 val folder1Apps = allApps.take(5).map { it.packageName }.toSet()
                 val folder2Apps = allApps.drop(5).take(3).map { it.packageName }.toSet()
-                val folder3Apps = allApps.drop(8).take(6).map { it.packageName }.toSet()
+                val folder3Apps = allApps.drop(8).take(4).map { it.packageName }.toSet()
 
                 val margin = 32f * 3.5f
                 val availableWidth = currentScreenSize.width - (margin * 2)
                 val availableHeight = currentScreenSize.height - (margin * 2)
-                
+
                 val defaultFolders = listOf(
                     Folder(
                         id = "folder_1",
                         name = "Ordner 1",
                         appPackageNames = folder1Apps,
                         position = androidx.compose.ui.geometry.Offset(
-                            margin + availableWidth * 0.75f, 
+                            margin + availableWidth * 0.75f,
                             margin + availableHeight * 0.2f
                         )
                     ),
@@ -80,7 +80,7 @@ class FolderOverviewViewModel @Inject constructor(
                         name = "Ordner 2",
                         appPackageNames = folder2Apps,
                         position = androidx.compose.ui.geometry.Offset(
-                            margin + availableWidth * 0.25f, 
+                            margin + availableWidth * 0.25f,
                             margin + availableHeight * 0.35f
                         )
                     ),
@@ -89,7 +89,7 @@ class FolderOverviewViewModel @Inject constructor(
                         name = "Ordner 3",
                         appPackageNames = folder3Apps,
                         position = androidx.compose.ui.geometry.Offset(
-                            margin + availableWidth * 0.6f, 
+                            margin + availableWidth * 0.6f,
                             margin + availableHeight * 0.7f
                         )
                     )
