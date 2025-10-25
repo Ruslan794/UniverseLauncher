@@ -89,19 +89,8 @@ object PlanetRenderingEngine {
             cachedSizeCalculation!!
         }
         
-        // Sort planets by Y-position for proper depth layering (background first, foreground last)
-        val sortedBodies = orbitalSystem.orbitalBodies.mapIndexed { index, orbitalBody ->
-            // Calculate current Y-position for sorting
-            val config = orbitalBody.orbitalConfig
-            val effectiveOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
-            val normalizedTime = (animationTime / effectiveOrbitDuration) % 1f
-            val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
-            val yPosition = sin(angle).toFloat()
-            
-            Triple(orbitalBody, index, yPosition)
-        }.sortedBy { it.third } // Sort by Y-position (smaller Y = background, larger Y = foreground)
-        
-        sortedBodies.forEach { (orbitalBody, index, _) ->
+        // Draw planets in original order for better performance
+        orbitalSystem.orbitalBodies.forEachIndexed { index, orbitalBody ->
             drawSinglePlanet(
                 drawScope = drawScope,
                 orbitalBody = orbitalBody,
@@ -150,7 +139,7 @@ object PlanetRenderingEngine {
             drawOrbitPath(drawScope, canvasAnalysis.center, orbitDistance, orbitalBody.orbitalConfig.ellipseRatio)
         }
         
-        // 13. Calculate angle for depth scaling
+        // 13. Calculate angle once for both position and depth scaling
         val config = orbitalBody.orbitalConfig
         val effectiveOrbitDuration = orbitalBody.appInfo.customOrbitSpeed ?: config.orbitDuration
         val normalizedTime = (animationTime / effectiveOrbitDuration) % 1f
@@ -160,10 +149,9 @@ object PlanetRenderingEngine {
         val depthScale = calculateDepthScale(angle)
         val planetRadius = basePlanetRadius * depthScale
         
-        // 15. Planet-Position berechnen
-        val position = calculatePlanetPosition(
-            orbitalBody = orbitalBody,
-            animationTime = animationTime,
+        // 15. Planet-Position berechnen (reuse angle calculation)
+        val position = calculatePlanetPositionWithAngle(
+            angle = angle,
             orbitDistance = orbitDistance,
             center = canvasAnalysis.center,
             ellipseRatio = orbitalBody.orbitalConfig.ellipseRatio
@@ -213,6 +201,22 @@ object PlanetRenderingEngine {
         val normalizedTime = (animationTime / effectiveOrbitDuration) % 1f
         val angle = (normalizedTime * 360f + config.startAngle) * PI / 180f
         
+        // Pre-calculate trigonometric values
+        val cosAngle = cos(angle).toFloat()
+        val sinAngle = sin(angle).toFloat()
+        
+        val x = center.x + orbitDistance * cosAngle * ellipseRatio
+        val y = center.y + orbitDistance * sinAngle
+        
+        return Offset(x, y)
+    }
+
+    private fun calculatePlanetPositionWithAngle(
+        angle: Double,
+        orbitDistance: Float,
+        center: Offset,
+        ellipseRatio: Float
+    ): Offset {
         // Pre-calculate trigonometric values
         val cosAngle = cos(angle).toFloat()
         val sinAngle = sin(angle).toFloat()
