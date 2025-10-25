@@ -132,7 +132,6 @@ fun UniverseScreen(
             LauncherSettingsScreen(
                 onClose = {
                     viewModel.onCloseSettings()
-                    viewModel.clearSettingsSearch()
                 },
                 folderId = uiState.folderId
             )

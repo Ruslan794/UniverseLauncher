@@ -200,10 +200,6 @@ class UniverseViewModel @Inject constructor(
         }
     }
 
-    fun clearSettingsSearch() {
-        appDataManager.clearSettingsSearch()
-    }
-
     private var canvasSizeUpdateJob: Job? = null
 
     fun updateCanvasSize(canvasSize: androidx.compose.ui.geometry.Size) {

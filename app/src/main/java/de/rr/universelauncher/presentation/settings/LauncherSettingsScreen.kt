@@ -50,7 +50,10 @@ fun LauncherSettingsScreen(
                     color = Color.White
                 )
                 
-                IconButton(onClick = onClose) {
+                IconButton(onClick = {
+                    viewModel.clearSearchQuery()
+                    onClose()
+                }) {
                     Icon(
                         painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_close_clear_cancel),
                         contentDescription = "Close",

@@ -97,7 +97,8 @@ object FolderRenderer {
             drawOrbitPath(drawScope, center, orbitRadius)
 
             val speed = 1.5f + (planetIndex * 0.4f)
-            val angle = animationTime * speed
+            val randomStartAngle = (planetIndex * 66.6f) % (2 * PI).toFloat()
+            val angle = animationTime * speed + randomStartAngle
 
             val x = center.x + cos(angle).toFloat() * orbitRadius
             val y = center.y + sin(angle).toFloat() * orbitRadius
