@@ -1,14 +1,13 @@
 package de.rr.universelauncher.presentation.universe.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalContext
 import de.rr.universelauncher.domain.engine.OrbitalPhysics
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
@@ -17,12 +16,7 @@ import de.rr.universelauncher.presentation.universe.components.cache.rememberOrb
 import kotlinx.coroutines.delay
 import android.util.Log
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.graphics.drawable.toBitmap
-import de.rr.universelauncher.R
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.core.content.ContextCompat
+import kotlin.math.abs
 
 @Composable
 fun UniverseCanvas(
@@ -34,18 +28,9 @@ fun UniverseCanvas(
     modifier: Modifier = Modifier
 ) {
     val iconCache = rememberIconCache(orbitalSystem)
-    val context = LocalContext.current
 
     LaunchedEffect(orbitalSystem) {
         iconCache.preloadIcons(orbitalSystem)
-    }
-    
-    // Load sun image
-    LaunchedEffect(Unit) {
-        val sunDrawable = ContextCompat.getDrawable(context, R.drawable.sun)
-        sunDrawable?.let {
-            UniverseRenderer.sunBitmap = it.toBitmap().asImageBitmap()
-        }
     }
 
     var currentAnimationTime by remember { mutableStateOf(0f) }
@@ -54,64 +39,158 @@ fun UniverseCanvas(
     var lastFpsTime by remember { mutableStateOf(System.currentTimeMillis()) }
     var lastFrameTime by remember { mutableStateOf(0L) }
     val density = LocalDensity.current
+    
+    val PHASE1_DURATION = 100L
+    val PHASE2_DURATION = 400L
+    val PHASE3_DURATION = 1000L
+    val MAX_SPEED_MULTIPLIER = 25f
+    val SPEED_STACK_FACTOR = 2f
+    
+    var speedMultiplier by remember { mutableStateOf(1f) }
+    var isSpeedBoostActive by remember { mutableStateOf(false) }
+    var currentMaxSpeed by remember { mutableStateOf(MAX_SPEED_MULTIPLIER) }
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            if (!isSpeedBoostActive) {
+                delay(100)
+                continue
+            }
+            
+            val startTime = System.currentTimeMillis()
+            
+            while (System.currentTimeMillis() - startTime < PHASE1_DURATION) {
+                val progress = (System.currentTimeMillis() - startTime).toFloat() / PHASE1_DURATION
+                speedMultiplier = 1f + ((currentMaxSpeed - 1f) * progress)
+                delay(16)
+            }
+            
+            speedMultiplier = currentMaxSpeed
+            delay(PHASE2_DURATION)
+            
+            val decelStartTime = System.currentTimeMillis()
+            while (System.currentTimeMillis() - decelStartTime < PHASE3_DURATION) {
+                val progress = (System.currentTimeMillis() - decelStartTime).toFloat() / PHASE3_DURATION
+                speedMultiplier = currentMaxSpeed - ((currentMaxSpeed - 1f) * progress)
+                delay(16)
+            }
+            
+            speedMultiplier = 1f
+            isSpeedBoostActive = false
+            currentMaxSpeed = MAX_SPEED_MULTIPLIER
+        }
+    }
+    
+    fun startSpeedBoost() {
+        if (isSpeedBoostActive) {
+            val additionalSpeed = (currentMaxSpeed - 1f) * SPEED_STACK_FACTOR
+            currentMaxSpeed += additionalSpeed
+        } else {
+            isSpeedBoostActive = true
+        }
+    }
 
-    // Optimized animation loop with frame synchronization
     LaunchedEffect(isPaused) {
         if (!isPaused) {
             while (true) {
                 val frameTime = withFrameNanos { it }
                 if (lastFrameTime > 0) {
                     val deltaTime = (frameTime - lastFrameTime) / 1_000_000_000f // Convert to seconds
-                    currentAnimationTime += deltaTime
+                    currentAnimationTime += deltaTime * speedMultiplier
                 }
                 lastFrameTime = frameTime
             }
         }
     }
 
-    // Calculate center without triggering recomposition
     val center = remember { Offset.Zero }
     
-    // Create orbit path cache that's independent of absolute center
     val orbitPathCache = rememberOrbitPathCache(orbitalSystem, Offset.Zero)
     
-    // Memoize expensive calculations
     val memoizedOrbitalSystem = remember(orbitalSystem) { orbitalSystem }
 
     Canvas(
         modifier = modifier
             .fillMaxHeight()
             .pointerInput(orbitalSystem) {
-                detectTapGestures(
-                    onTap = { offset ->
+                var dragStartPosition: Offset? = null
+                var isSwipeFromRight = false
+                var lastTapTime = 0L
+                var lastTapPosition: Offset? = null
+                val DRAG_THRESHOLD = 20f
+                val PLANET_TAP_TOLERANCE = 1.8f
+                
+                detectDragGestures(
+                    onDragStart = { offset ->
                         val centerX = size.width / 2f
                         val centerY = size.height / 2f
                         val center = Offset(centerX, centerY)
-
-                        val distanceFromCenter = (offset - center).getDistance()
-                        if (distanceFromCenter <= orbitalSystem.star.radius * 1.5f) {
-                            onStarTapped()
-                            return@detectTapGestures
+                        
+                        isSwipeFromRight = offset.x > centerX
+                        
+                        if (isSwipeFromRight) {
+                            dragStartPosition = offset
                         }
-
-                        orbitalSystem.orbitalBodies.forEach { orbitalBody ->
-                            val position = OrbitalPhysics.calculateOrbitalBodyPosition(
-                                orbitalBody = orbitalBody,
-                                timeSeconds = currentAnimationTime
-                            )
-
-                            val screenX = centerX + position.first
-                            val screenY = centerY + position.second
-                            val planetCenter = Offset(screenX, screenY)
-
-                            val distance = (offset - planetCenter).getDistance()
-                            val planetRadius = 20f // Default radius for tap detection
-
-                            if (distance <= planetRadius * 1.2f) {
-                                onPlanetTapped(orbitalBody, planetCenter, planetRadius)
-                                return@detectTapGestures
+                    },
+                    onDrag = { change, _ ->
+                        if (isSwipeFromRight && dragStartPosition != null) {
+                            val totalDeltaY = change.position.y - dragStartPosition!!.y
+                            
+                            if (totalDeltaY > 50f) {
+                                startSpeedBoost()
+                                isSwipeFromRight = false
                             }
                         }
+                    },
+                    onDragEnd = { 
+                        if (dragStartPosition != null) {
+                            val centerX = size.width / 2f
+                            val centerY = size.height / 2f
+                            val center = Offset(centerX, centerY)
+                            val offset = dragStartPosition!!
+                            val totalDragDistance = (offset - dragStartPosition!!).getDistance()
+                            
+                            val currentTime = System.currentTimeMillis()
+                            val isRightOfCenter = offset.x > centerX
+                            
+                            if (totalDragDistance < DRAG_THRESHOLD) {
+                                if (isRightOfCenter && lastTapPosition != null && 
+                                    lastTapTime > 0 && (currentTime - lastTapTime) < 500 &&
+                                    (offset - lastTapPosition!!).getDistance() < 50f) {
+                                    startSpeedBoost()
+                                } else if (isRightOfCenter) {
+                                    lastTapTime = currentTime
+                                    lastTapPosition = offset
+                                }
+
+                                val distanceFromCenter = (offset - center).getDistance()
+                                if (distanceFromCenter <= orbitalSystem.star.radius * 1.5f) {
+                                    onStarTapped()
+                                } else {
+                                    orbitalSystem.orbitalBodies.forEach { orbitalBody ->
+                                        val position = OrbitalPhysics.calculateOrbitalBodyPosition(
+                                            orbitalBody = orbitalBody,
+                                            timeSeconds = currentAnimationTime
+                                        )
+
+                                        val screenX = centerX + position.first
+                                        val screenY = centerY + position.second
+                                        val planetCenter = Offset(screenX, screenY)
+
+                                        val distance = (offset - planetCenter).getDistance()
+                                        val planetRadius = 20f
+
+                                        if (distance <= planetRadius * PLANET_TAP_TOLERANCE) {
+                                            onPlanetTapped(orbitalBody, planetCenter, planetRadius)
+                                            return@forEach
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        dragStartPosition = null
+                        isSwipeFromRight = false
                     }
                 )
             }
@@ -122,9 +201,8 @@ fun UniverseCanvas(
 
         val currentCanvasSize = androidx.compose.ui.geometry.Size(size.width, size.height)
         
-        // Only update canvas size if change is significant (>5px difference)
-        val sizeChanged = kotlin.math.abs(lastCanvasSize.width - currentCanvasSize.width) > 5f ||
-                         kotlin.math.abs(lastCanvasSize.height - currentCanvasSize.height) > 5f
+        val sizeChanged = abs(lastCanvasSize.width - currentCanvasSize.width) > 5f ||
+                         abs(lastCanvasSize.height - currentCanvasSize.height) > 5f
         
         if (sizeChanged) {
             lastCanvasSize = currentCanvasSize
@@ -141,10 +219,9 @@ fun UniverseCanvas(
             canvasSize = currentCanvasSize
         )
 
-        // Optimized performance logging - only every 5 seconds
         frameCount++
         val currentTime = System.currentTimeMillis()
-        if (currentTime - lastFpsTime >= 5000) { // Log every 5 seconds
+        if (currentTime - lastFpsTime >= 5000) {
             val fps = frameCount * 1000.0 / (currentTime - lastFpsTime)
             Log.i("UniversePerformance", "FPS: ${"%.1f".format(fps)}, Planets: ${orbitalSystem.orbitalBodies.size}")
             frameCount = 0
