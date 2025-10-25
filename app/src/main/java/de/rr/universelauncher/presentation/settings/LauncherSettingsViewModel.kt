@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,43 +27,82 @@ class LauncherSettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LauncherSettingsUiState())
     val uiState: StateFlow<LauncherSettingsUiState> = _uiState.asStateFlow()
 
+    fun setFolderId(folderId: String?) {
+        _uiState.update { it.copy(folderId = folderId) }
+        loadData()
+    }
+
     init {
         loadData()
     }
 
 
+    private var loadDataJob: Job? = null
+
     private fun loadData() {
-        viewModelScope.launch {
+        loadDataJob?.cancel()
+        loadDataJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
                 val allApps = appRepository.getInstalledAppsWithLaunchCounts()
+                val currentFolderId = _uiState.value.folderId
 
-                combine(
-                    launcherSettingsRepository.getSelectedApps(),
-                    launcherSettingsRepository.getAppOrder()
-                ) { selectedApps, appOrder ->
-                    Pair(selectedApps, appOrder)
+                if (currentFolderId != null) {
+                    combine(
+                        launcherSettingsRepository.getFolderSelectedApps(currentFolderId),
+                        launcherSettingsRepository.getFolderAppOrder(currentFolderId)
+                    ) { selectedApps, appOrder ->
+                        Pair(selectedApps, appOrder)
+                    }
+                        .catch { e ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = e.message ?: "Failed to load folder settings"
+                                )
+                            }
+                        }
+                        .take(1)
+                        .collect { (selectedApps, appOrder) ->
+                            _uiState.update {
+                                it.copy(
+                                    allApps = allApps,
+                                    selectedApps = selectedApps,
+                                    appOrder = appOrder,
+                                    isLoading = false,
+                                    error = null
+                                )
+                            }
+                        }
+                } else {
+                    combine(
+                        launcherSettingsRepository.getSelectedApps(),
+                        launcherSettingsRepository.getAppOrder()
+                    ) { selectedApps, appOrder ->
+                        Pair(selectedApps, appOrder)
+                    }
+                        .catch { e ->
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = e.message ?: "Failed to load selected apps"
+                                )
+                            }
+                        }
+                        .take(1)
+                        .collect { (selectedApps, appOrder) ->
+                            _uiState.update {
+                                it.copy(
+                                    allApps = allApps,
+                                    selectedApps = selectedApps,
+                                    appOrder = appOrder,
+                                    isLoading = false,
+                                    error = null
+                                )
+                            }
+                        }
                 }
-                    .catch { e ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = e.message ?: "Failed to load selected apps"
-                            )
-                        }
-                    }
-                    .collect { (selectedApps, appOrder) ->
-                        _uiState.update {
-                            it.copy(
-                                allApps = allApps,
-                                selectedApps = selectedApps,
-                                appOrder = appOrder,
-                                isLoading = false,
-                                error = null
-                            )
-                        }
-                    }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -82,6 +123,7 @@ class LauncherSettingsViewModel @Inject constructor(
             try {
                 val currentSelected = _uiState.value.selectedApps
                 val currentOrder = _uiState.value.appOrder.toMutableMap()
+                val currentFolderId = _uiState.value.folderId
 
                 if (packageName in currentSelected) {
                     val newSelected = currentSelected - packageName
@@ -92,8 +134,13 @@ class LauncherSettingsViewModel @Inject constructor(
                         currentOrder[entry.key] = index + 1
                     }
 
-                    launcherSettingsRepository.setSelectedApps(newSelected)
-                    launcherSettingsRepository.setAppOrder(currentOrder)
+                    if (currentFolderId != null) {
+                        launcherSettingsRepository.setFolderSelectedApps(currentFolderId, newSelected)
+                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
+                    } else {
+                        launcherSettingsRepository.setSelectedApps(newSelected)
+                        launcherSettingsRepository.setAppOrder(currentOrder)
+                    }
                 } else {
                     if (currentSelected.size >= 6) {
                         _uiState.update {
@@ -106,8 +153,13 @@ class LauncherSettingsViewModel @Inject constructor(
                     currentOrder[packageName] = nextPosition
 
                     val newSelected = currentSelected + packageName
-                    launcherSettingsRepository.setSelectedApps(newSelected)
-                    launcherSettingsRepository.setAppOrder(currentOrder)
+                    if (currentFolderId != null) {
+                        launcherSettingsRepository.setFolderSelectedApps(currentFolderId, newSelected)
+                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
+                    } else {
+                        launcherSettingsRepository.setSelectedApps(newSelected)
+                        launcherSettingsRepository.setAppOrder(currentOrder)
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -122,6 +174,7 @@ class LauncherSettingsViewModel @Inject constructor(
             try {
                 val currentOrder = _uiState.value.appOrder.toMutableMap()
                 val currentPosition = currentOrder[packageName] ?: return@launch
+                val currentFolderId = _uiState.value.folderId
 
                 if (currentPosition <= 1) return@launch
 
@@ -129,7 +182,11 @@ class LauncherSettingsViewModel @Inject constructor(
                 if (swapPackage != null) {
                     currentOrder[packageName] = currentPosition - 1
                     currentOrder[swapPackage] = currentPosition
-                    launcherSettingsRepository.setAppOrder(currentOrder)
+                    if (currentFolderId != null) {
+                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
+                    } else {
+                        launcherSettingsRepository.setAppOrder(currentOrder)
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -145,6 +202,7 @@ class LauncherSettingsViewModel @Inject constructor(
                 val currentOrder = _uiState.value.appOrder.toMutableMap()
                 val currentPosition = currentOrder[packageName] ?: return@launch
                 val maxPosition = currentOrder.values.maxOrNull() ?: return@launch
+                val currentFolderId = _uiState.value.folderId
 
                 if (currentPosition >= maxPosition) return@launch
 
@@ -152,7 +210,11 @@ class LauncherSettingsViewModel @Inject constructor(
                 if (swapPackage != null) {
                     currentOrder[packageName] = currentPosition + 1
                     currentOrder[swapPackage] = currentPosition
-                    launcherSettingsRepository.setAppOrder(currentOrder)
+                    if (currentFolderId != null) {
+                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, currentOrder)
+                    } else {
+                        launcherSettingsRepository.setAppOrder(currentOrder)
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -167,6 +229,7 @@ class LauncherSettingsViewModel @Inject constructor(
             try {
                 val currentOrder = _uiState.value.appOrder.toMutableMap()
                 val oldPosition = currentOrder[packageName] ?: return@launch
+                val currentFolderId = _uiState.value.folderId
 
                 if (oldPosition == newPosition) return@launch
 
@@ -187,7 +250,11 @@ class LauncherSettingsViewModel @Inject constructor(
                         newOrder[entry.key] = index + 1
                     }
 
-                    launcherSettingsRepository.setAppOrder(newOrder)
+                    if (currentFolderId != null) {
+                        launcherSettingsRepository.setFolderAppOrder(currentFolderId, newOrder)
+                    } else {
+                        launcherSettingsRepository.setAppOrder(newOrder)
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -211,7 +278,12 @@ class LauncherSettingsViewModel @Inject constructor(
     fun setAppOrbitSpeed(packageName: String, speed: Float) {
         viewModelScope.launch {
             try {
-                launcherSettingsRepository.setAppOrbitSpeed(packageName, speed)
+                val currentFolderId = _uiState.value.folderId
+                if (currentFolderId != null) {
+                    launcherSettingsRepository.setFolderAppOrbitSpeed(currentFolderId, packageName, speed)
+                } else {
+                    launcherSettingsRepository.setAppOrbitSpeed(packageName, speed)
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Failed to set orbit speed")
@@ -223,7 +295,12 @@ class LauncherSettingsViewModel @Inject constructor(
     fun setAppPlanetSize(packageName: String, size: String) {
         viewModelScope.launch {
             try {
-                launcherSettingsRepository.setAppPlanetSize(packageName, size)
+                val currentFolderId = _uiState.value.folderId
+                if (currentFolderId != null) {
+                    launcherSettingsRepository.setFolderAppPlanetSize(currentFolderId, packageName, size)
+                } else {
+                    launcherSettingsRepository.setAppPlanetSize(packageName, size)
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Failed to set planet size")
@@ -238,5 +315,6 @@ class LauncherSettingsViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        loadDataJob?.cancel()
     }
 }

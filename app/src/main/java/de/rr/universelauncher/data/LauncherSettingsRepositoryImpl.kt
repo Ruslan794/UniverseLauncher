@@ -49,4 +49,30 @@ class LauncherSettingsRepositoryImpl @Inject constructor(
 
     override suspend fun updateFolderName(folderId: String, newName: String) = 
         launcherPreferences.updateFolderName(folderId, newName)
+
+    override fun getFolderSelectedApps(folderId: String) = launcherPreferences.getFolderSelectedApps(folderId)
+
+    override suspend fun setFolderSelectedApps(folderId: String, apps: Set<String>) = 
+        launcherPreferences.setFolderSelectedApps(folderId, apps)
+
+    override fun getFolderAppOrder(folderId: String) = launcherPreferences.getFolderAppOrder(folderId)
+
+    override suspend fun setFolderAppOrder(folderId: String, appOrder: Map<String, Int>) = 
+        launcherPreferences.setFolderAppOrder(folderId, appOrder)
+
+    override fun getFolderAppOrbitSpeeds(folderId: String) = launcherPreferences.getFolderAppOrbitSpeeds(folderId)
+
+    override suspend fun setFolderAppOrbitSpeed(folderId: String, packageName: String, speed: Float) = 
+        launcherPreferences.setFolderAppOrbitSpeed(folderId, packageName, speed)
+
+    override suspend fun getFolderAppOrbitSpeed(folderId: String, packageName: String): Float? = 
+        launcherPreferences.getFolderAppOrbitSpeed(folderId, packageName)
+
+    override fun getFolderAppPlanetSizes(folderId: String) = launcherPreferences.getFolderAppPlanetSizes(folderId)
+
+    override suspend fun setFolderAppPlanetSize(folderId: String, packageName: String, size: String) = 
+        launcherPreferences.setFolderAppPlanetSize(folderId, packageName, size)
+
+    override suspend fun getFolderAppPlanetSize(folderId: String, packageName: String): String? = 
+        launcherPreferences.getFolderAppPlanetSize(folderId, packageName)
 }

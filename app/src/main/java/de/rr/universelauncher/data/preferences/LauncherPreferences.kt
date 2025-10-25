@@ -210,4 +210,111 @@ class LauncherPreferences @Inject constructor(
             throw e
         }
     }
+
+    fun getFolderSelectedApps(folderId: String): Flow<Set<String>> = dataStore.data.map { preferences ->
+        preferences[stringSetPreferencesKey("folder_${folderId}_selected_apps")] ?: emptySet()
+    }
+
+    suspend fun setFolderSelectedApps(folderId: String, apps: Set<String>) {
+        try {
+            dataStore.edit { preferences ->
+                preferences[stringSetPreferencesKey("folder_${folderId}_selected_apps")] = apps
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to set folder selected apps", e)
+            throw e
+        }
+    }
+
+    fun getFolderAppOrder(folderId: String): Flow<Map<String, Int>> = dataStore.data.map { preferences ->
+        val orderString = preferences[stringSetPreferencesKey("folder_${folderId}_app_order")] ?: emptySet()
+        orderString.associate { entry ->
+            val parts = entry.split(":")
+            if (parts.size == 2) {
+                parts[0] to (parts[1].toIntOrNull() ?: 0)
+            } else {
+                "" to 0
+            }
+        }.filterKeys { it.isNotEmpty() }
+    }
+
+    suspend fun setFolderAppOrder(folderId: String, appOrder: Map<String, Int>) {
+        try {
+            dataStore.edit { preferences ->
+                val orderSet = appOrder.map { "${it.key}:${it.value}" }.toSet()
+                preferences[stringSetPreferencesKey("folder_${folderId}_app_order")] = orderSet
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to set folder app order", e)
+            throw e
+        }
+    }
+
+    fun getFolderAppOrbitSpeeds(folderId: String): Flow<Map<String, Float>> = dataStore.data.map { preferences ->
+        val speedsString = preferences[stringSetPreferencesKey("folder_${folderId}_orbit_speeds")] ?: emptySet()
+        speedsString.associate { entry ->
+            val parts = entry.split(":")
+            if (parts.size == 2) {
+                parts[0] to (parts[1].toFloatOrNull() ?: 0f)
+            } else {
+                "" to 0f
+            }
+        }.filterKeys { it.isNotEmpty() }
+    }
+
+    suspend fun setFolderAppOrbitSpeed(folderId: String, packageName: String, speed: Float) {
+        try {
+            dataStore.edit { preferences ->
+                val currentSpeeds = preferences[stringSetPreferencesKey("folder_${folderId}_orbit_speeds")] ?: emptySet()
+                val updatedSpeeds = currentSpeeds.filterNot { it.startsWith("$packageName:") }.toMutableSet()
+                updatedSpeeds.add("$packageName:$speed")
+                preferences[stringSetPreferencesKey("folder_${folderId}_orbit_speeds")] = updatedSpeeds
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to set folder orbit speed", e)
+            throw e
+        }
+    }
+
+    suspend fun getFolderAppOrbitSpeed(folderId: String, packageName: String): Float? {
+        return dataStore.data.map { preferences ->
+            val speedsString = preferences[stringSetPreferencesKey("folder_${folderId}_orbit_speeds")] ?: emptySet()
+            speedsString.find { it.startsWith("$packageName:") }
+                ?.substringAfter(":")?.toFloatOrNull()
+        }.first()
+    }
+
+    fun getFolderAppPlanetSizes(folderId: String): Flow<Map<String, String>> = dataStore.data.map { preferences ->
+        val sizesString = preferences[stringSetPreferencesKey("folder_${folderId}_planet_sizes")] ?: emptySet()
+        sizesString.associate { entry ->
+            val parts = entry.split(":")
+            if (parts.size == 2) {
+                parts[0] to parts[1]
+            } else {
+                "" to "MEDIUM"
+            }
+        }.filterKeys { it.isNotEmpty() }
+    }
+
+    suspend fun setFolderAppPlanetSize(folderId: String, packageName: String, size: String) {
+        try {
+            dataStore.edit { preferences ->
+                val currentSizes = preferences[stringSetPreferencesKey("folder_${folderId}_planet_sizes")] ?: emptySet()
+                val updatedSizes = currentSizes.filterNot { it.startsWith("$packageName:") }.toMutableSet()
+                updatedSizes.add("$packageName:$size")
+                preferences[stringSetPreferencesKey("folder_${folderId}_planet_sizes")] = updatedSizes
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LauncherPreferences", "Failed to set folder planet size", e)
+            throw e
+        }
+    }
+
+    suspend fun getFolderAppPlanetSize(folderId: String, packageName: String): String? {
+        return dataStore.data.map { preferences ->
+            val sizesString = preferences[stringSetPreferencesKey("folder_${folderId}_planet_sizes")] ?: emptySet()
+            sizesString.find { it.startsWith("$packageName:") }
+                ?.substringAfter(":")
+        }.first()
+    }
 }

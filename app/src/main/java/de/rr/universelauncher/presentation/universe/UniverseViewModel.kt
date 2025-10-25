@@ -48,7 +48,6 @@ class UniverseViewModel @Inject constructor(
 
     init {
         loadApps()
-        observeSelectedAppsChanges()
     }
 
     fun setFolderId(folderId: String?) {
@@ -70,7 +69,12 @@ class UniverseViewModel @Inject constructor(
                 val currentFolderId = _uiState.value.folderId
                 
                 val finalSelectedApps = if (currentFolderId != null) {
-                    getFolderAppPackages(currentFolderId)
+                    val folderSelectedApps = launcherSettingsRepository.getFolderSelectedApps(currentFolderId).first()
+                    if (folderSelectedApps.isNotEmpty()) {
+                        folderSelectedApps
+                    } else {
+                        getFolderAppPackages(currentFolderId)
+                    }
                 } else {
                     val selectedApps = launcherSettingsRepository.getSelectedApps().first()
                     selectedApps.ifEmpty {
@@ -83,7 +87,11 @@ class UniverseViewModel @Inject constructor(
 
                 val filteredApps = allApps.filter { it.packageName in finalSelectedApps }
 
-                val appOrder = launcherSettingsRepository.getAppOrder().first()
+                val appOrder = if (currentFolderId != null) {
+                    launcherSettingsRepository.getFolderAppOrder(currentFolderId).first()
+                } else {
+                    launcherSettingsRepository.getAppOrder().first()
+                }
                 val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps, appOrder)
                 val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
                     orbitalSystem,
@@ -140,51 +148,6 @@ class UniverseViewModel @Inject constructor(
         }
     }
 
-    @OptIn(FlowPreview::class)
-    private fun observeSelectedAppsChanges() {
-        viewModelScope.launch {
-            combine(
-                launcherSettingsRepository.getSelectedApps(),
-                launcherSettingsRepository.getAppOrder()
-            ) { selectedApps, appOrder ->
-                Pair(selectedApps, appOrder)
-            }
-                .debounce(500)
-                .catch { e ->
-                    android.util.Log.e("UniverseViewModel", "Error in observeSelectedAppsChanges", e)
-                    _uiState.update {
-                        it.copy(error = e.message ?: "Failed to observe settings changes")
-                    }
-                }
-                .collect { (selectedApps, appOrder) ->
-                    try {
-                        if (_uiState.value.folderId != null) {
-                            return@collect
-                        }
-
-                        if (_uiState.value.showSettings) {
-                            return@collect
-                        }
-
-                        val currentSystem = _uiState.value.orbitalSystem
-                        if (currentSystem.orbitalBodies.isEmpty() && selectedApps.isEmpty()) {
-                            return@collect
-                        }
-
-                        val currentPackages = currentSystem.orbitalBodies
-                            .map { it.appInfo.packageName }
-                            .toSet()
-
-                        if (selectedApps.isNotEmpty() && selectedApps != currentPackages) {
-                            delay(200)
-                            loadAppsWithSelectedApps(selectedApps)
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.e("UniverseViewModel", "Error processing changes", e)
-                    }
-                }
-        }
-    }
 
     private suspend fun loadAppsWithSelectedApps(selectedApps: Set<String>) {
         try {
@@ -201,7 +164,12 @@ class UniverseViewModel @Inject constructor(
                 return
             }
 
-            val appOrder = launcherSettingsRepository.getAppOrder().first()
+            val currentFolderId = _uiState.value.folderId
+            val appOrder = if (currentFolderId != null) {
+                launcherSettingsRepository.getFolderAppOrder(currentFolderId).first()
+            } else {
+                launcherSettingsRepository.getAppOrder().first()
+            }
             val orbitalSystem = OrbitalPhysics.createOrbitalSystemFromApps(filteredApps, appOrder)
             val distributedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
                 orbitalSystem,

@@ -48,6 +48,7 @@ fun FolderCanvas(
 ) {
     var currentAnimationTime by remember { mutableStateOf(0f) }
     var lastScreenSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+    var currentScreenSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     val density = LocalDensity.current
     var editingTexts by remember { mutableStateOf(mapOf<String, String>()) }
     val focusRequesters = remember { mutableMapOf<String, FocusRequester>() }
@@ -106,7 +107,7 @@ fun FolderCanvas(
                     )
                 }
         ) {
-            val currentScreenSize = androidx.compose.ui.geometry.Size(size.width, size.height)
+            currentScreenSize = androidx.compose.ui.geometry.Size(size.width, size.height)
 
             val sizeChanged = abs(lastScreenSize.width - currentScreenSize.width) > 5f ||
                     abs(lastScreenSize.height - currentScreenSize.height) > 5f
@@ -115,6 +116,13 @@ fun FolderCanvas(
                 lastScreenSize = currentScreenSize
                 onScreenSizeChanged(currentScreenSize)
             }
+
+            val clipRect = androidx.compose.ui.geometry.Rect(
+                offset = androidx.compose.ui.geometry.Offset.Zero,
+                size = currentScreenSize
+            )
+            
+            drawContext.canvas.clipRect(clipRect)
 
             folders.forEach { folder ->
                 FolderRenderer.drawFolder(
@@ -130,6 +138,20 @@ fun FolderCanvas(
             val planetCount = folder.appPackageNames.size
             val lastOrbitRadius = 100f + ((planetCount - 1) * 50f)
             val nameY = folder.position.y + lastOrbitRadius + 40f
+            
+            val canvasWidth = currentScreenSize.width
+            val canvasHeight = currentScreenSize.height
+            
+            val textX = if (canvasWidth >= 200f) {
+                (folder.position.x - 100f).coerceIn(0f, canvasWidth - 200f)
+            } else {
+                (folder.position.x - 100f).coerceIn(0f, canvasWidth)
+            }
+            val textY = if (canvasHeight >= 30f) {
+                nameY.coerceIn(0f, canvasHeight - 30f)
+            } else {
+                nameY.coerceIn(0f, canvasHeight)
+            }
 
             if (editingFolderId == folder.id) {
                 val focusRequester = focusRequesters.getOrPut(folder.id) { FocusRequester() }
@@ -141,8 +163,8 @@ fun FolderCanvas(
                     },
                     modifier = Modifier
                         .offset(
-                            x = with(density) { (folder.position.x - 100f).toDp() },
-                            y = with(density) { nameY.toDp() }
+                            x = with(density) { textX.toDp() },
+                            y = with(density) { textY.toDp() }
                         )
                         .width(200.dp)
                         .focusRequester(focusRequester)
@@ -173,8 +195,8 @@ fun FolderCanvas(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .offset(
-                            x = with(density) { (folder.position.x - 100f).toDp() },
-                            y = with(density) { nameY.toDp() }
+                            x = with(density) { textX.toDp() },
+                            y = with(density) { textY.toDp() }
                         )
                         .width(200.dp)
                 )

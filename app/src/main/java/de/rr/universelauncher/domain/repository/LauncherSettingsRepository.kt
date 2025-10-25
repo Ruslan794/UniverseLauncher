@@ -20,4 +20,15 @@ interface LauncherSettingsRepository {
     fun getFolders(): Flow<List<FolderData>>
     suspend fun saveFolders(folders: List<FolderData>)
     suspend fun updateFolderName(folderId: String, newName: String)
+    
+    fun getFolderSelectedApps(folderId: String): Flow<Set<String>>
+    suspend fun setFolderSelectedApps(folderId: String, apps: Set<String>)
+    fun getFolderAppOrder(folderId: String): Flow<Map<String, Int>>
+    suspend fun setFolderAppOrder(folderId: String, appOrder: Map<String, Int>)
+    fun getFolderAppOrbitSpeeds(folderId: String): Flow<Map<String, Float>>
+    suspend fun setFolderAppOrbitSpeed(folderId: String, packageName: String, speed: Float)
+    suspend fun getFolderAppOrbitSpeed(folderId: String, packageName: String): Float?
+    fun getFolderAppPlanetSizes(folderId: String): Flow<Map<String, String>>
+    suspend fun setFolderAppPlanetSize(folderId: String, packageName: String, size: String)
+    suspend fun getFolderAppPlanetSize(folderId: String, packageName: String): String?
 }

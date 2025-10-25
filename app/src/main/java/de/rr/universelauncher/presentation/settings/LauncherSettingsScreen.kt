@@ -21,10 +21,15 @@ import de.rr.universelauncher.domain.model.PlanetSize
 fun LauncherSettingsScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    folderId: String? = null,
     viewModel: LauncherSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showAppSettings by remember { mutableStateOf<de.rr.universelauncher.domain.model.AppInfo?>(null) }
+
+    LaunchedEffect(folderId) {
+        viewModel.setFolderId(folderId)
+    }
 
     Box(
         modifier = modifier

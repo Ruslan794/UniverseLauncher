@@ -8,5 +8,6 @@ data class LauncherSettingsUiState(
     val appOrder: Map<String, Int> = emptyMap(),
     val searchQuery: String = "",
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val folderId: String? = null
 )

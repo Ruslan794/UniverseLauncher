@@ -90,7 +90,8 @@ fun UniverseScreen(
 
         if (uiState.showSettings) {
             LauncherSettingsScreen(
-                onClose = viewModel::onCloseSettings
+                onClose = viewModel::onCloseSettings,
+                folderId = uiState.folderId
             )
         }
 

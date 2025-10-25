@@ -34,8 +34,19 @@ object FolderRenderer {
         animationTime: Float,
         planetCount: Int
     ) {
-        drawFolderStar(drawScope, folder.position, animationTime)
-        drawFolderPlanets(drawScope, folder.position, animationTime, planetCount)
+        val canvasSize = drawScope.size
+        val margin = 32f * 3.5f
+        val availableWidth = canvasSize.width - (margin * 2)
+        val availableHeight = canvasSize.height - (margin * 2)
+        val maxRadius = minOf(availableWidth, availableHeight) / 2f - 50f
+        
+        val clampedPosition = androidx.compose.ui.geometry.Offset(
+            folder.position.x.coerceIn(margin, canvasSize.width - margin),
+            folder.position.y.coerceIn(margin, canvasSize.height - margin)
+        )
+        
+        drawFolderStar(drawScope, clampedPosition, animationTime)
+        drawFolderPlanets(drawScope, clampedPosition, animationTime, planetCount, maxRadius)
     }
 
     private fun drawFolderStar(
@@ -75,12 +86,13 @@ object FolderRenderer {
         drawScope: DrawScope,
         center: Offset,
         animationTime: Float,
-        planetCount: Int
+        planetCount: Int,
+        maxRadius: Float
     ) {
         if (planetCount <= 0) return
 
         for (planetIndex in 0 until planetCount) {
-            val orbitRadius = MIN_ORBIT_RADIUS + (planetIndex * ORBIT_SPACING)
+            val orbitRadius = (MIN_ORBIT_RADIUS + (planetIndex * ORBIT_SPACING)).coerceAtMost(maxRadius)
 
             drawOrbitPath(drawScope, center, orbitRadius)
 

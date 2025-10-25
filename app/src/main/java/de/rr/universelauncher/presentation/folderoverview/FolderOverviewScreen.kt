@@ -106,7 +106,9 @@ fun FolderOverviewScreen(
                     onCancelEditing = {
                         viewModel.cancelEditing()
                     },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp)
                 )
             }
         }
