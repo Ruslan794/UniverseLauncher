@@ -114,7 +114,7 @@ class UniverseViewModel @Inject constructor(
         folderId: String?
     ): OrbitalSystem {
         val finalSelectedApps = selectedApps.ifEmpty {
-            val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
+            val topApps = allApps.sortedByDescending { it.launchCount }.take(5)
             val topAppPackages = topApps.map { it.packageName }.toSet()
             viewModelScope.launch {
                 appDataManager.setSelectedApps(topAppPackages)
