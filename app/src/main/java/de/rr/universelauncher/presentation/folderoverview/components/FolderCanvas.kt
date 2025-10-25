@@ -27,6 +27,10 @@ import androidx.compose.runtime.withFrameNanos
 import kotlin.math.abs
 import android.graphics.Paint
 import android.graphics.Typeface
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -77,15 +81,20 @@ fun FolderCanvas(
                             val FOLDER_TAP_TOLERANCE = 100f
 
                             folders.forEach { folder ->
-                                val distance = (offset - folder.position).getDistance()
-                                val nameY = folder.position.y + 160f
-                                val nameDistance = abs(offset.y - nameY)
+                                val planetCount = folder.appPackageNames.size
+                                val lastOrbitRadius = 100f + ((planetCount - 1) * 50f)
+                                val nameY = folder.position.y + lastOrbitRadius + 40f
 
+                                if (offset.y >= nameY && offset.y <= nameY + 30f &&
+                                    offset.x >= folder.position.x - 100f &&
+                                    offset.x <= folder.position.x + 100f) {
+                                    onFolderNameTapped(folder.id)
+                                    return@detectTapGestures
+                                }
+
+                                val distance = (offset - folder.position).getDistance()
                                 if (distance <= FOLDER_TAP_TOLERANCE) {
                                     onFolderTapped(folder.id)
-                                    return@detectTapGestures
-                                } else if (nameDistance <= 30f && abs(offset.x - folder.position.x) <= 120f) {
-                                    onFolderNameTapped(folder.id)
                                     return@detectTapGestures
                                 }
                             }
@@ -118,7 +127,9 @@ fun FolderCanvas(
         }
 
         folders.forEach { folder ->
-            val nameY = folder.position.y + 160f
+            val planetCount = folder.appPackageNames.size
+            val lastOrbitRadius = 100f + ((planetCount - 1) * 50f)
+            val nameY = folder.position.y + lastOrbitRadius + 40f
 
             if (editingFolderId == folder.id) {
                 val focusRequester = focusRequesters.getOrPut(folder.id) { FocusRequester() }
@@ -131,7 +142,7 @@ fun FolderCanvas(
                     modifier = Modifier
                         .offset(
                             x = with(density) { (folder.position.x - 100f).toDp() },
-                            y = with(density) { (nameY - 20f).toDp() }
+                            y = with(density) { nameY.toDp() }
                         )
                         .width(200.dp)
                         .focusRequester(focusRequester)
@@ -147,43 +158,26 @@ fun FolderCanvas(
                         },
                     textStyle = TextStyle(
                         color = Color.White,
-                        fontSize = 32.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     ),
-                    singleLine = true,
-                    decorationBox = { innerTextField ->
-                        Box(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            innerTextField()
-                        }
-                    }
+                    singleLine = true
                 )
             } else {
-                Canvas(
+                Text(
+                    text = folder.name,
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
                         .offset(
                             x = with(density) { (folder.position.x - 100f).toDp() },
-                            y = with(density) { (nameY - 20f).toDp() }
+                            y = with(density) { nameY.toDp() }
                         )
                         .width(200.dp)
-                ) {
-                    val textPaint = Paint().apply {
-                        color = android.graphics.Color.WHITE
-                        textSize = 32f
-                        typeface = Typeface.DEFAULT_BOLD
-                        textAlign = Paint.Align.CENTER
-                        isAntiAlias = true
-                    }
-
-                    drawContext.canvas.nativeCanvas.drawText(
-                        folder.name,
-                        size.width / 2,
-                        20f,
-                        textPaint
-                    )
-                }
+                )
             }
         }
     }

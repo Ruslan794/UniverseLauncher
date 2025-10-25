@@ -14,7 +14,6 @@ object FolderRenderer {
     private const val FOLDER_PLANET_RADIUS = 12f
     private const val MIN_ORBIT_RADIUS = 100f
     private const val ORBIT_SPACING = 50f
-    private const val MAX_ORBITS = 3
 
     private val PLANET_COLORS = listOf(
         Color(0xFF4A90E2),
@@ -22,7 +21,11 @@ object FolderRenderer {
         Color(0xFF4AE24A),
         Color(0xFFE2E24A),
         Color(0xFFE24AE2),
-        Color(0xFF4AE2E2)
+        Color(0xFF4AE2E2),
+        Color(0xFFFF6B6B),
+        Color(0xFF4ECDC4),
+        Color(0xFFFFE66D),
+        Color(0xFFA8E6CF)
     )
 
     fun drawFolder(
@@ -76,50 +79,22 @@ object FolderRenderer {
     ) {
         if (planetCount <= 0) return
 
-        val orbitConfigs = calculateOrbitDistribution(planetCount)
-
-        orbitConfigs.forEachIndexed { orbitIndex, config ->
-            val orbitRadius = MIN_ORBIT_RADIUS + (orbitIndex * ORBIT_SPACING)
+        for (planetIndex in 0 until planetCount) {
+            val orbitRadius = MIN_ORBIT_RADIUS + (planetIndex * ORBIT_SPACING)
 
             drawOrbitPath(drawScope, center, orbitRadius)
 
-            config.planets.forEachIndexed { planetIndex, planetInfo ->
-                val angle = planetInfo.angle + animationTime * planetInfo.speed
-                val x = center.x + cos(angle).toFloat() * orbitRadius
-                val y = center.y + sin(angle).toFloat() * orbitRadius
+            val speed = 1.5f + (planetIndex * 0.4f)
+            val angle = animationTime * speed
 
-                val planetPosition = Offset(x, y)
-                drawFolderPlanet(drawScope, planetPosition, FOLDER_PLANET_RADIUS, planetInfo.color)
-            }
+            val x = center.x + cos(angle).toFloat() * orbitRadius
+            val y = center.y + sin(angle).toFloat() * orbitRadius
+
+            val planetPosition = Offset(x, y)
+            val color = PLANET_COLORS[planetIndex % PLANET_COLORS.size]
+
+            drawFolderPlanet(drawScope, planetPosition, FOLDER_PLANET_RADIUS, color)
         }
-    }
-
-    private fun calculateOrbitDistribution(planetCount: Int): List<OrbitConfig> {
-        val orbits = mutableListOf<OrbitConfig>()
-        val maxPlanetsPerOrbit = 2
-
-        var remainingPlanets = planetCount
-        var currentPlanetIndex = 0
-
-        while (remainingPlanets > 0) {
-            val planetsInThisOrbit = minOf(maxPlanetsPerOrbit, remainingPlanets)
-            val planets = (0 until planetsInThisOrbit).map { index ->
-                val globalIndex = currentPlanetIndex + index
-                val angleSpacing = 2 * PI / planetsInThisOrbit
-
-                PlanetInfo(
-                    angle = (index * angleSpacing).toFloat(),
-                    speed = 1.8f + (orbits.size * 0.6f) + (index * 0.3f),
-                    color = PLANET_COLORS[globalIndex % PLANET_COLORS.size]
-                )
-            }
-
-            orbits.add(OrbitConfig(planets))
-            remainingPlanets -= planetsInThisOrbit
-            currentPlanetIndex += planetsInThisOrbit
-        }
-
-        return orbits
     }
 
     private fun drawOrbitPath(
@@ -175,14 +150,4 @@ object FolderRenderer {
             center = position - Offset(radius * 0.3f, radius * 0.3f)
         )
     }
-
-    private data class OrbitConfig(
-        val planets: List<PlanetInfo>
-    )
-
-    private data class PlanetInfo(
-        val angle: Float,
-        val speed: Float,
-        val color: Color
-    )
 }

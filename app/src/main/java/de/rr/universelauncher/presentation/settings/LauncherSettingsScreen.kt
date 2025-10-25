@@ -2,15 +2,12 @@ package de.rr.universelauncher.presentation.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -19,7 +16,6 @@ import de.rr.universelauncher.presentation.theme.SpaceBackground
 import de.rr.universelauncher.presentation.settings.components.AppSelectionList
 import de.rr.universelauncher.presentation.settings.components.AppSettingsDialog
 import de.rr.universelauncher.domain.model.PlanetSize
-import de.rr.universelauncher.domain.model.AppInfo
 
 @Composable
 fun LauncherSettingsScreen(
@@ -28,7 +24,7 @@ fun LauncherSettingsScreen(
     viewModel: LauncherSettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showAppSettings by remember { mutableStateOf<AppInfo?>(null) }
+    var showAppSettings by remember { mutableStateOf<de.rr.universelauncher.domain.model.AppInfo?>(null) }
 
     Box(
         modifier = modifier
@@ -40,6 +36,34 @@ fun LauncherSettingsScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "App Settings",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    modifier = Modifier.weight(1f)
+                )
+
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color.White.copy(alpha = 0.1f), CircleShape)
+                ) {
+                    Text(
+                        text = "✕",
+                        color = Color.White,
+                        fontSize = 24.sp
+                    )
+                }
+            }
+
             when {
                 uiState.isLoading -> {
                     Box(
@@ -55,10 +79,16 @@ fun LauncherSettingsScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Error: ${uiState.error}",
-                            color = Color.White
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Error: ${uiState.error}",
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = onClose) {
+                                Text("Close")
+                            }
+                        }
                     }
                 }
 

@@ -33,76 +33,89 @@ class FolderOverviewViewModel @Inject constructor(
     private var currentScreenSize: Size = Size(1080f, 2400f)
 
     init {
-        loadFolders()
+        viewModelScope.launch {
+            loadFolders()
+        }
     }
 
-    private fun loadFolders() {
-        viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isLoading = true, error = null) }
-                
-                val savedFolders = launcherSettingsRepository.getFolders().first()
-                
-                val folders = if (savedFolders.isEmpty()) {
-                    val allApps = appRepository.getInstalledAppsWithLaunchCounts()
-                    val selectedApps = launcherSettingsRepository.getSelectedApps().first()
-                    
-                    val finalSelectedApps = selectedApps.ifEmpty {
-                        val topApps = allApps.sortedByDescending { it.launchCount }.take(10)
-                        val topAppPackages = topApps.map { it.packageName }.toSet()
-                        launcherSettingsRepository.setSelectedApps(topAppPackages)
-                        topAppPackages
-                    }
-                    
-                    val remainingApps = allApps.filter { it.packageName !in finalSelectedApps }
-                    val appsPerFolder = (remainingApps.size / 2).coerceAtLeast(1)
-                    
-                    val defaultFolders = createDefaultFolders(currentScreenSize.width, currentScreenSize.height)
-                    val foldersWithApps = defaultFolders.mapIndexed { index, folder ->
-                        val folderApps = when (index) {
-                            0 -> finalSelectedApps.take(6).toSet()
-                            else -> {
-                                val startIndex = (index - 1) * 6
-                                remainingApps.drop(startIndex).take(6).map { it.packageName }.toSet()
-                            }
-                        }
-                        folder.copy(appPackageNames = folderApps)
-                    }
-                    
-                    val folderData = foldersWithApps.map { folder ->
-                        de.rr.universelauncher.domain.model.FolderData(folder.id, folder.name, folder.appPackageNames)
-                    }
-                    launcherSettingsRepository.saveFolders(folderData)
-                    
-                    foldersWithApps
-                } else {
-                    savedFolders.map { folderData ->
-                        Folder(
-                            id = folderData.id,
-                            name = folderData.name,
-                            appPackageNames = folderData.appPackageNames,
-                            position = getFolderPosition(folderData.id)
+    private suspend fun loadFolders() {
+        try {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            val savedFolders = launcherSettingsRepository.getFolders().first()
+
+            val folders = if (savedFolders.isEmpty()) {
+                val allApps = appRepository.getInstalledAppsWithLaunchCounts()
+
+                if (allApps.isEmpty()) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "No apps found"
                         )
                     }
+                    return
                 }
-                
-                _uiState.update {
-                    it.copy(
-                        folders = folders,
-                        isLoading = false
+
+                val folder1Apps = allApps.take(5).map { it.packageName }.toSet()
+                val folder2Apps = allApps.drop(5).take(3).map { it.packageName }.toSet()
+                val folder3Apps = allApps.drop(8).take(6).map { it.packageName }.toSet()
+
+                val defaultFolders = listOf(
+                    Folder(
+                        id = "folder_1",
+                        name = "Ordner 1",
+                        appPackageNames = folder1Apps,
+                        position = androidx.compose.ui.geometry.Offset(currentScreenSize.width * 0.75f, currentScreenSize.height * 0.2f)
+                    ),
+                    Folder(
+                        id = "folder_2",
+                        name = "Ordner 2",
+                        appPackageNames = folder2Apps,
+                        position = androidx.compose.ui.geometry.Offset(currentScreenSize.width * 0.25f, currentScreenSize.height * 0.35f)
+                    ),
+                    Folder(
+                        id = "folder_3",
+                        name = "Ordner 3",
+                        appPackageNames = folder3Apps,
+                        position = androidx.compose.ui.geometry.Offset(currentScreenSize.width * 0.6f, currentScreenSize.height * 0.7f)
                     )
+                )
+
+                val folderData = defaultFolders.map { folder ->
+                    de.rr.universelauncher.domain.model.FolderData(folder.id, folder.name, folder.appPackageNames)
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load folders"
+                launcherSettingsRepository.saveFolders(folderData)
+
+                defaultFolders
+            } else {
+                savedFolders.map { folderData ->
+                    Folder(
+                        id = folderData.id,
+                        name = folderData.name,
+                        appPackageNames = folderData.appPackageNames,
+                        position = getFolderPosition(folderData.id)
                     )
                 }
             }
+
+            _uiState.update {
+                it.copy(
+                    folders = folders,
+                    isLoading = false
+                )
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FolderOverviewViewModel", "Error loading folders", e)
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = e.message ?: "Failed to load folders"
+                )
+            }
         }
     }
-    
+
     private fun getFolderPosition(folderId: String): androidx.compose.ui.geometry.Offset {
         return when (folderId) {
             "folder_1" -> androidx.compose.ui.geometry.Offset(currentScreenSize.width * 0.75f, currentScreenSize.height * 0.2f)
@@ -115,16 +128,16 @@ class FolderOverviewViewModel @Inject constructor(
     fun onFolderTapped(folderId: String): String? {
         return folderId
     }
-    
+
     fun onFolderNameTapped(folderId: String) {
         _uiState.update { it.copy(editingFolderId = folderId) }
     }
-    
+
     fun updateFolderName(folderId: String, newName: String) {
         viewModelScope.launch {
             try {
                 launcherSettingsRepository.updateFolderName(folderId, newName)
-                _uiState.update { 
+                _uiState.update {
                     it.copy(
                         editingFolderId = null,
                         folders = it.folders.map { folder ->
@@ -139,26 +152,21 @@ class FolderOverviewViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun cancelEditing() {
         _uiState.update { it.copy(editingFolderId = null) }
     }
 
     fun updateScreenSize(screenSize: Size) {
         if (screenSize.width <= 0 || screenSize.height <= 0) return
-        
+
         currentScreenSize = screenSize
-        
+
         viewModelScope.launch {
             try {
-                val savedFolders = launcherSettingsRepository.getFolders().first()
-                val folders = savedFolders.map { folderData ->
-                    Folder(
-                        id = folderData.id,
-                        name = folderData.name,
-                        appPackageNames = folderData.appPackageNames,
-                        position = getFolderPosition(folderData.id)
-                    )
+                val currentFolders = _uiState.value.folders
+                val folders = currentFolders.map { folder ->
+                    folder.copy(position = getFolderPosition(folder.id))
                 }
                 _uiState.update { it.copy(folders = folders) }
             } catch (e: Exception) {

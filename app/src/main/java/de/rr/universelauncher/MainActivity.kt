@@ -35,9 +35,9 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             UniverseLauncherTheme {
-                var showFolderOverview by remember { mutableStateOf(false) }
+                var showFolderOverview by remember { mutableStateOf(true) }
                 var selectedFolderId by remember { mutableStateOf<String?>(null) }
-                
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.fillMaxSize()) {
                         UniverseScreen(
@@ -50,12 +50,13 @@ class MainActivity : ComponentActivity() {
                             folderId = selectedFolderId,
                             onBackPressed = {
                                 selectedFolderId = null
+                                showFolderOverview = true
                             },
                             onShowFolderOverview = {
                                 showFolderOverview = true
                             }
                         )
-                        
+
                         AnimatedVisibility(
                             visible = showFolderOverview,
                             enter = slideInHorizontally(

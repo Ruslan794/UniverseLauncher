@@ -235,4 +235,8 @@ class LauncherSettingsViewModel @Inject constructor(
     fun getAppOrder(): Map<String, Int> {
         return _uiState.value.appOrder
     }
+
+    override fun onCleared() {
+        super.onCleared()
+    }
 }
