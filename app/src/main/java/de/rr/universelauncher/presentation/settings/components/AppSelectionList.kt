@@ -233,15 +233,8 @@ private fun AppSelectionItem(
             Text(
                 text = app.appName,
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = app.packageName,
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -253,12 +246,12 @@ private fun AppSelectionItem(
                     Text(
                         text = "Launches: ${app.launchCount}",
                         color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 10.sp
+                        fontSize = 14.sp
                     )
                     Text(
                         text = "Speed: ${(app.customOrbitSpeed ?: 30f).toInt()}s",
                         color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 10.sp
+                        fontSize = 14.sp
                     )
                 }
             }

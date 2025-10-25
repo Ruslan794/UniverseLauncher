@@ -153,8 +153,13 @@ fun UniverseCanvas(
                                 val cosAngle = kotlin.math.cos(newAngle).toFloat()
                                 val sinAngle = kotlin.math.sin(newAngle).toFloat()
                                 
-                                val offsetX = orbitDistance * cosAngle * config.ellipseRatio
-                                val offsetY = orbitDistance * sinAngle
+                                // Calculate ellipse radii first (same as in drawOrbitPath)
+                                val radiusX = orbitDistance * config.ellipseRatio
+                                val radiusY = orbitDistance
+                                
+                                // Calculate point on ellipse
+                                val offsetX = radiusX * cosAngle
+                                val offsetY = radiusY * sinAngle
                                 
                                 val tiltAngle = RenderingConstants.ORBIT_TILT_ANGLE * kotlin.math.PI / 180.0
                                 val cosTilt = kotlin.math.cos(tiltAngle).toFloat()
