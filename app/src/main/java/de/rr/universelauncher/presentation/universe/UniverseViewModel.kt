@@ -11,6 +11,7 @@ import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
 import de.rr.universelauncher.domain.model.emptyOrbitalSystemWithDefaultStar
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,59 +42,30 @@ class UniverseViewModel @Inject constructor(
         androidx.compose.ui.geometry.Size(1080f, 2400f)
 
     private var folderIdJob: Job? = null
+    private var dataCollectionJob: Job? = null
+    private var canvasSizeUpdateJob: Job? = null
+
 
     init {
-        folderIdJob = viewModelScope.launch {
-            combine(
-                appDataManager.allApps,
-                appDataManager.selectedApps,
-                appDataManager.appOrder,
-                appDataManager.orbitSpeeds,
-                appDataManager.planetSizes
-            ) { arr ->
-                val apps = arr[0] as List<de.rr.universelauncher.domain.model.AppInfo>
-                val selected = arr[1] as Set<String>
-                val order = arr[2] as Map<String, Int>
-                val speeds = arr[3] as Map<String, Float>
-                val sizes = arr[4] as Map<String, String>
-                buildOrbitalSystem(apps, selected, order, speeds, sizes, null)
-            }.collect { orbitalSystem ->
-                _uiState.update {
-                    it.copy(
-                        orbitalSystem = orbitalSystem,
-                        isLoading = false,
-                        error = null
-                    )
-                }
-            }
-        }
+        loadData(null)
     }
 
-    fun setFolderId(folderId: String?) {
-        _uiState.update { it.copy(folderId = folderId) }
-        
-        folderIdJob?.cancel()
-        folderIdJob = if (folderId != null) {
+    private fun loadData(folderId: String?) {
+        dataCollectionJob?.cancel()
+        dataCollectionJob = if (folderId != null) {
             viewModelScope.launch {
                 combine(
                     appDataManager.allApps,
                     appDataManager.folderSelectedApps,
                     appDataManager.folderAppOrders,
                     appDataManager.folderOrbitSpeeds,
-                    appDataManager.folderPlanetSizes,
-                    _uiState
-                ) { arr ->
-                    val apps = arr[0] as List<de.rr.universelauncher.domain.model.AppInfo>
-                    val folderSelected = arr[1] as Map<String, Set<String>>
-                    val folderOrders = arr[2] as Map<String, Map<String, Int>>
-                    val folderSpeeds = arr[3] as Map<String, Map<String, Float>>
-                    val folderSizes = arr[4] as Map<String, Map<String, String>>
-                    val state = arr[5] as UniverseUiState
-                    val selected = folderSelected[state.folderId] ?: emptySet()
-                    val order = folderOrders[state.folderId] ?: emptyMap()
-                    val speeds = folderSpeeds[state.folderId] ?: emptyMap()
-                    val sizes = folderSizes[state.folderId] ?: emptyMap()
-                    buildOrbitalSystem(apps, selected, order, speeds, sizes, state.folderId)
+                    appDataManager.folderPlanetSizes
+                ) { allApps, folderSelected, folderOrders, folderSpeeds, folderSizes ->
+                    val selected = folderSelected[folderId] ?: emptySet()
+                    val order = folderOrders[folderId] ?: emptyMap()
+                    val speeds = folderSpeeds[folderId] ?: emptyMap()
+                    val sizes = folderSizes[folderId] ?: emptyMap()
+                    buildOrbitalSystem(allApps, selected, order, speeds, sizes, folderId)
                 }.collect { orbitalSystem ->
                     _uiState.update {
                         it.copy(
@@ -112,13 +84,8 @@ class UniverseViewModel @Inject constructor(
                     appDataManager.appOrder,
                     appDataManager.orbitSpeeds,
                     appDataManager.planetSizes
-                ) { arr ->
-                    val apps = arr[0] as List<de.rr.universelauncher.domain.model.AppInfo>
-                    val selected = arr[1] as Set<String>
-                    val order = arr[2] as Map<String, Int>
-                    val speeds = arr[3] as Map<String, Float>
-                    val sizes = arr[4] as Map<String, String>
-                    buildOrbitalSystem(apps, selected, order, speeds, sizes, null)
+                ) { allApps, selected, order, speeds, sizes ->
+                    buildOrbitalSystem(allApps, selected, order, speeds, sizes, null)
                 }.collect { orbitalSystem ->
                     _uiState.update {
                         it.copy(
@@ -130,6 +97,12 @@ class UniverseViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+
+    fun setFolderId(folderId: String?) {
+        _uiState.update { it.copy(folderId = folderId) }
+        loadData(folderId)
     }
 
     private fun buildOrbitalSystem(
@@ -200,15 +173,13 @@ class UniverseViewModel @Inject constructor(
         }
     }
 
-    private var canvasSizeUpdateJob: Job? = null
-
-    fun updateCanvasSize(canvasSize: androidx.compose.ui.geometry.Size) {
+    fun updateCanvasSize(canvasSize: Size) {
         if (canvasSize.width <= 0 || canvasSize.height <= 0) return
-
         currentCanvasSize = canvasSize
 
         canvasSizeUpdateJob?.cancel()
         canvasSizeUpdateJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(100)
             try {
                 val currentSystem = _uiState.value.orbitalSystem
                 if (currentSystem.orbitalBodies.isEmpty()) return@launch
@@ -225,5 +196,11 @@ class UniverseViewModel @Inject constructor(
                 android.util.Log.e("UniverseViewModel", "Failed to update canvas size", e)
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        dataCollectionJob?.cancel()
+        canvasSizeUpdateJob?.cancel()
     }
 }

@@ -86,6 +86,7 @@ class AppDataManager @Inject constructor(
         _appOrder.value = appOrder
     }
 
+
     suspend fun setAppOrbitSpeed(packageName: String, speed: Float) {
         launcherSettingsRepository.setAppOrbitSpeed(packageName, speed)
         _orbitSpeeds.value = _orbitSpeeds.value.toMutableMap().apply { put(packageName, speed) }
@@ -105,6 +106,7 @@ class AppDataManager @Inject constructor(
         launcherSettingsRepository.setFolderAppOrder(folderId, appOrder)
         _folderAppOrders.value = _folderAppOrders.value.toMutableMap().apply { put(folderId, appOrder) }
     }
+
 
     suspend fun setFolderAppOrbitSpeed(folderId: String, packageName: String, speed: Float) {
         launcherSettingsRepository.setFolderAppOrbitSpeed(folderId, packageName, speed)
@@ -134,6 +136,4 @@ class AppDataManager @Inject constructor(
         _folders.value = _folders.value.map { if (it.id == folderId) it.copy(name = newName) else it }
     }
 
-    fun clearSettingsSearch() {
-    }
 }

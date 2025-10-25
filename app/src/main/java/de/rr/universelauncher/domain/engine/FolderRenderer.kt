@@ -14,6 +14,7 @@ object FolderRenderer {
     private const val FOLDER_PLANET_RADIUS = 12f
     private const val MIN_ORBIT_RADIUS = 100f
     private const val ORBIT_SPACING = 50f
+    private const val BASE_SPEED = 0.5f
 
     private val PLANET_COLORS = listOf(
         Color(0xFF4A90E2),
@@ -39,23 +40,26 @@ object FolderRenderer {
         val availableWidth = canvasSize.width - (margin * 2)
         val availableHeight = canvasSize.height - (margin * 2)
         val maxRadius = minOf(availableWidth, availableHeight) / 2f - 50f
-        
-        val clampedPosition = androidx.compose.ui.geometry.Offset(
+
+        val clampedPosition = Offset(
             folder.position.x.coerceIn(margin, canvasSize.width - margin),
             folder.position.y.coerceIn(margin, canvasSize.height - margin)
         )
-        
-        drawFolderStar(drawScope, clampedPosition, animationTime)
-        drawFolderPlanets(drawScope, clampedPosition, animationTime, planetCount, maxRadius)
+
+        drawFolderStar(drawScope, clampedPosition, animationTime, folder.id)
+        drawFolderPlanets(drawScope, clampedPosition, animationTime, planetCount, maxRadius, folder.id)
     }
 
     private fun drawFolderStar(
         drawScope: DrawScope,
         position: Offset,
-        animationTime: Float
+        animationTime: Float,
+        folderId: String
     ) {
         val starColor = Color(0xFFFFD700)
-        val pulse = (sin(animationTime * 1.2f) * 0.15f + 0.9f)
+        val folderHash = folderId.hashCode().absoluteValue
+        val pulseSpeed = 1.0f + (folderHash % 5) * 0.2f
+        val pulse = (sin(animationTime * pulseSpeed) * 0.15f + 0.9f)
 
         val rings = 3
         for (i in rings downTo 1) {
@@ -87,24 +91,32 @@ object FolderRenderer {
         center: Offset,
         animationTime: Float,
         planetCount: Int,
-        maxRadius: Float
+        maxRadius: Float,
+        folderId: String
     ) {
         if (planetCount <= 0) return
+
+        val folderHash = folderId.hashCode().absoluteValue
+        val speedMultiplier = 0.7f + (folderHash % 10) * 0.1f
+        val directionMultiplier = if (folderHash % 2 == 0) 1f else -1f
+        val startAngleOffset = (folderHash % 360).toFloat()
 
         for (planetIndex in 0 until planetCount) {
             val orbitRadius = (MIN_ORBIT_RADIUS + (planetIndex * ORBIT_SPACING)).coerceAtMost(maxRadius)
 
             drawOrbitPath(drawScope, center, orbitRadius)
 
-            val speed = 1.5f + (planetIndex * 0.4f)
-            val randomStartAngle = (planetIndex * 66.6f) % (2 * PI).toFloat()
+            val baseSpeed = BASE_SPEED + (planetIndex * 0.15f)
+            val speed = baseSpeed * speedMultiplier * directionMultiplier
+            val randomStartAngle = (startAngleOffset + planetIndex * 66.6f) % (2 * PI).toFloat()
             val angle = animationTime * speed + randomStartAngle
 
             val x = center.x + cos(angle).toFloat() * orbitRadius
             val y = center.y + sin(angle).toFloat() * orbitRadius
 
             val planetPosition = Offset(x, y)
-            val color = PLANET_COLORS[planetIndex % PLANET_COLORS.size]
+            val colorIndex = (planetIndex + (folderHash % PLANET_COLORS.size)) % PLANET_COLORS.size
+            val color = PLANET_COLORS[colorIndex]
 
             drawFolderPlanet(drawScope, planetPosition, FOLDER_PLANET_RADIUS, color)
         }

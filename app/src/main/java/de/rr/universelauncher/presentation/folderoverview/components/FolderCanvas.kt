@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Size
 
 @Composable
 fun FolderCanvas(
@@ -46,9 +47,11 @@ fun FolderCanvas(
     onCancelEditing: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var currentAnimationTime by remember { mutableStateOf(0f) }
-    var lastScreenSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
-    var currentScreenSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
+    var currentAnimationTime by remember { mutableFloatStateOf(0f) }
+    var lastScreenSize by remember { mutableStateOf(Size.Zero) }
+    var currentScreenSize by remember { mutableStateOf(Size.Zero) }
+    var lastFrameTime by remember { mutableLongStateOf(0L) }
+
     val density = LocalDensity.current
     var editingTexts by remember { mutableStateOf(mapOf<String, String>()) }
     val focusRequesters = remember(editingFolderId) {
@@ -74,9 +77,13 @@ fun FolderCanvas(
 
     LaunchedEffect(Unit) {
         while (true) {
-            val frameTime = withFrameNanos { it }
-            currentAnimationTime += 0.016f
-            delay(16)
+            withFrameNanos { frameTime ->
+                if (lastFrameTime > 0) {
+                    val deltaTime = (frameTime - lastFrameTime) / 1_000_000_000f
+                    currentAnimationTime += deltaTime
+                }
+                lastFrameTime = frameTime
+            }
         }
     }
 

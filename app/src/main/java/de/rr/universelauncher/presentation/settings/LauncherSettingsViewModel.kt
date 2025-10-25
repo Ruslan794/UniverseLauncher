@@ -29,18 +29,37 @@ class LauncherSettingsViewModel @Inject constructor(
                 combine(
                     appDataManager.allApps,
                     appDataManager.folderSelectedApps,
-                    appDataManager.folderAppOrders
-                ) { allApps, folderSelected, folderOrders ->
+                    appDataManager.folderAppOrders,
+                    appDataManager.folderOrbitSpeeds,
+                    appDataManager.folderPlanetSizes
+                ) { allApps, folderSelected, folderOrders, folderSpeeds, folderSizes ->
                     val selected = folderSelected[folderId] ?: emptySet()
                     val order = folderOrders[folderId] ?: emptyMap()
-                    Triple(allApps, selected, order)
-                }.collect { (allApps, selected, order) ->
+                    val speeds = folderSpeeds[folderId] ?: emptyMap()
+                    val sizes = folderSizes[folderId] ?: emptyMap()
+
+                    val appsWithSettings = allApps.map { app ->
+                        val customPlanetSize = when (sizes[app.packageName]) {
+                            "SMALL" -> de.rr.universelauncher.domain.model.PlanetSize.SMALL
+                            "MEDIUM" -> de.rr.universelauncher.domain.model.PlanetSize.MEDIUM
+                            "LARGE" -> de.rr.universelauncher.domain.model.PlanetSize.LARGE
+                            else -> app.customPlanetSize
+                        }
+
+                        app.copy(
+                            customOrbitSpeed = speeds[app.packageName] ?: app.customOrbitSpeed,
+                            customPlanetSize = customPlanetSize
+                        )
+                    }
+
+                    QuadTuple(appsWithSettings, selected, order, folderId)
+                }.collect { (appsWithSettings, selected, order, folder) ->
                     _uiState.update {
                         it.copy(
-                            allApps = allApps,
+                            allApps = appsWithSettings,
                             selectedApps = selected,
                             appOrder = order,
-                            folderId = folderId,
+                            folderId = folder,
                             isLoading = false
                         )
                     }
@@ -49,13 +68,29 @@ class LauncherSettingsViewModel @Inject constructor(
                 combine(
                     appDataManager.allApps,
                     appDataManager.selectedApps,
-                    appDataManager.appOrder
-                ) { allApps, selected, order ->
-                    Triple(allApps, selected, order)
-                }.collect { (allApps, selected, order) ->
+                    appDataManager.appOrder,
+                    appDataManager.orbitSpeeds,
+                    appDataManager.planetSizes
+                ) { allApps, selected, order, speeds, sizes ->
+                    val appsWithSettings = allApps.map { app ->
+                        val customPlanetSize = when (sizes[app.packageName]) {
+                            "SMALL" -> de.rr.universelauncher.domain.model.PlanetSize.SMALL
+                            "MEDIUM" -> de.rr.universelauncher.domain.model.PlanetSize.MEDIUM
+                            "LARGE" -> de.rr.universelauncher.domain.model.PlanetSize.LARGE
+                            else -> app.customPlanetSize
+                        }
+
+                        app.copy(
+                            customOrbitSpeed = speeds[app.packageName] ?: app.customOrbitSpeed,
+                            customPlanetSize = customPlanetSize
+                        )
+                    }
+
+                    Triple(appsWithSettings, selected, order)
+                }.collect { (appsWithSettings, selected, order) ->
                     _uiState.update {
                         it.copy(
-                            allApps = allApps,
+                            allApps = appsWithSettings,
                             selectedApps = selected,
                             appOrder = order,
                             folderId = null,
@@ -243,18 +278,6 @@ class LauncherSettingsViewModel @Inject constructor(
                 } else {
                     appDataManager.setAppOrbitSpeed(packageName, speed)
                 }
-
-                val allApps = _uiState.value.allApps
-                val updatedApps = allApps.map { app ->
-                    if (app.packageName == packageName) {
-                        app.copy(customOrbitSpeed = speed)
-                    } else {
-                        app
-                    }
-                }
-                _uiState.update {
-                    it.copy(allApps = updatedApps)
-                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Failed to set orbit speed")
@@ -272,25 +295,6 @@ class LauncherSettingsViewModel @Inject constructor(
                 } else {
                     appDataManager.setAppPlanetSize(packageName, size)
                 }
-
-                val planetSize = when (size) {
-                    "SMALL" -> de.rr.universelauncher.domain.model.PlanetSize.SMALL
-                    "MEDIUM" -> de.rr.universelauncher.domain.model.PlanetSize.MEDIUM
-                    "LARGE" -> de.rr.universelauncher.domain.model.PlanetSize.LARGE
-                    else -> null
-                }
-
-                val allApps = _uiState.value.allApps
-                val updatedApps = allApps.map { app ->
-                    if (app.packageName == packageName) {
-                        app.copy(customPlanetSize = planetSize)
-                    } else {
-                        app
-                    }
-                }
-                _uiState.update {
-                    it.copy(allApps = updatedApps)
-                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Failed to set planet size")
@@ -304,3 +308,5 @@ class LauncherSettingsViewModel @Inject constructor(
         loadDataJob?.cancel()
     }
 }
+
+private data class QuadTuple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

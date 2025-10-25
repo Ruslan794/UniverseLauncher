@@ -9,6 +9,8 @@ import androidx.core.graphics.createBitmap
 import de.rr.universelauncher.domain.model.OrbitalBody
 import de.rr.universelauncher.domain.model.OrbitalSystem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -23,45 +25,38 @@ fun rememberIconCache(
 class IconCache {
     private val cache = mutableMapOf<String, ImageBitmap>()
     private val maxCacheSize = 50
+    private val standardSize = 64
 
     fun getIconBitmapSync(orbitalBody: OrbitalBody): ImageBitmap? {
-        val standardSize = 64
-        val cacheKey = "${orbitalBody.appInfo.packageName}_${standardSize}"
+        val cacheKey = "${orbitalBody.appInfo.packageName}_$standardSize"
         return cache[cacheKey]
     }
 
-    suspend fun getIconBitmap(orbitalBody: OrbitalBody): ImageBitmap? {
-        val standardSize = 64
-        val cacheKey = "${orbitalBody.appInfo.packageName}_${standardSize}"
-
-        return cache[cacheKey] ?: run {
-            if (cache.size >= maxCacheSize) {
-                val oldestKey = cache.keys.first()
-                cache.remove(oldestKey)
+    suspend fun preloadIcons(orbitalSystem: OrbitalSystem) = withContext(Dispatchers.Default) {
+        orbitalSystem.orbitalBodies.map { orbitalBody ->
+            async {
+                val cacheKey = "${orbitalBody.appInfo.packageName}_$standardSize"
+                if (cache[cacheKey] == null && cache.size < maxCacheSize) {
+                    convertDrawableToBitmap(orbitalBody.appInfo.icon, standardSize)?.let { bitmap ->
+                        synchronized(cache) {
+                            cache[cacheKey] = bitmap
+                        }
+                    }
+                }
             }
-
-            val bitmap = convertDrawableToBitmap(orbitalBody.appInfo.icon, standardSize)
-            if (bitmap != null) {
-                cache[cacheKey] = bitmap
-            }
-            bitmap
-        }
-    }
-
-    suspend fun preloadIcons(orbitalSystem: OrbitalSystem) {
-        orbitalSystem.orbitalBodies.forEach { orbitalBody ->
-            getIconBitmap(orbitalBody)
-        }
+        }.awaitAll()
     }
 
     fun clearCache() {
-        cache.clear()
+        synchronized(cache) {
+            cache.clear()
+        }
     }
 
     private suspend fun convertDrawableToBitmap(
         drawable: Drawable,
         size: Int
-    ): ImageBitmap? = withContext(Dispatchers.IO) {
+    ): ImageBitmap? = withContext(Dispatchers.Default) {
         try {
             val bitmap = createBitmap(size, size)
             val canvas = Canvas(bitmap)

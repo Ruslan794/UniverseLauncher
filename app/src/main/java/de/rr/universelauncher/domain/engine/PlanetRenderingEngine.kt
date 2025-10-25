@@ -17,7 +17,7 @@ import android.util.Log
 
 object PlanetRenderingEngine {
 
-    private val planetAngles = mutableMapOf<String, Double>()
+    private val planetAngles = java.util.concurrent.ConcurrentHashMap<String, Double>()
 
     fun getPlanetAngle(planetKey: String): Double? = planetAngles[planetKey]
 
@@ -70,7 +70,9 @@ object PlanetRenderingEngine {
         return CanvasAnalysis(canvasRadius, center, minOffset, maxOffset, availableRadius)
     }
 
-    fun calculateSizes(orbitalBodies: List<OrbitalBody>, canvasAnalysis: CanvasAnalysis): SizeCalculation {
+    fun calculateSizes(
+        orbitalBodies: List<OrbitalBody>, canvasAnalysis: CanvasAnalysis
+    ): SizeCalculation {
         val planetCount = orbitalBodies.size
         val radialSlotSize = canvasAnalysis.availableRadius / planetCount
         val maxPlanetRadius = (radialSlotSize - 2 * RenderingConstants.PLANET_PADDING) / 2f
@@ -111,17 +113,20 @@ object PlanetRenderingEngine {
             lastCanvasSize = canvasSize
             analyzeCanvas(canvasSize, orbitalSystem.star).also { cachedCanvasAnalysis = it }
         } else {
-            cachedCanvasAnalysis ?: analyzeCanvas(canvasSize, orbitalSystem.star).also { cachedCanvasAnalysis = it }
+            cachedCanvasAnalysis ?: analyzeCanvas(
+                canvasSize, orbitalSystem.star
+            ).also { cachedCanvasAnalysis = it }
         }
 
-        val sizeCalculation = if (cachedSizeCalculation == null ||
-            lastCanvasSize != canvasSize ||
-            lastPlanetCount != currentPlanetCount) {
-            lastPlanetCount = currentPlanetCount
-            calculateSizes(orbitalSystem.orbitalBodies, canvasAnalysis).also { cachedSizeCalculation = it }
-        } else {
-            cachedSizeCalculation!!
-        }
+        val sizeCalculation =
+            if (cachedSizeCalculation == null || lastCanvasSize != canvasSize || lastPlanetCount != currentPlanetCount) {
+                lastPlanetCount = currentPlanetCount
+                calculateSizes(
+                    orbitalSystem.orbitalBodies, canvasAnalysis
+                ).also { cachedSizeCalculation = it }
+            } else {
+                cachedSizeCalculation!!
+            }
 
         orbitalSystem.orbitalBodies.forEachIndexed { index, orbitalBody ->
             drawSinglePlanet(
@@ -149,8 +154,8 @@ object PlanetRenderingEngine {
         orbitPathCache: de.rr.universelauncher.presentation.universe.components.cache.OrbitPathCache? = null,
         speedMultiplier: Float = 1f
     ) {
-        val basePlanetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory] ?:
-        sizeCalculation.sizeLookup[PlanetSize.MEDIUM]!!
+        val basePlanetRadius = sizeCalculation.sizeLookup[orbitalBody.orbitalConfig.sizeCategory]
+            ?: sizeCalculation.sizeLookup[PlanetSize.MEDIUM]!!
 
         val orbitDistance = orbitalBody.orbitalConfig.distance
 
@@ -164,7 +169,12 @@ object PlanetRenderingEngine {
                 style = Stroke(width = RenderingConstants.ORBIT_LINE_WIDTH)
             )
         } else {
-            drawOrbitPath(drawScope, canvasAnalysis.center, orbitDistance, orbitalBody.orbitalConfig.ellipseRatio)
+            drawOrbitPath(
+                drawScope,
+                canvasAnalysis.center,
+                orbitDistance,
+                orbitalBody.orbitalConfig.ellipseRatio
+            )
         }
 
         val config = orbitalBody.orbitalConfig
@@ -194,10 +204,7 @@ object PlanetRenderingEngine {
     }
 
     private fun drawOrbitPath(
-        drawScope: DrawScope,
-        center: Offset,
-        orbitDistance: Float,
-        ellipseRatio: Float
+        drawScope: DrawScope, center: Offset, orbitDistance: Float, ellipseRatio: Float
     ) {
         val path = Path()
         val radiusX = orbitDistance * ellipseRatio
@@ -235,10 +242,7 @@ object PlanetRenderingEngine {
     }
 
     private fun calculatePlanetPositionWithAngle(
-        angle: Double,
-        orbitDistance: Float,
-        center: Offset,
-        ellipseRatio: Float
+        angle: Double, orbitDistance: Float, center: Offset, ellipseRatio: Float
     ): Offset {
         val cosAngle = cos(angle).toFloat()
         val sinAngle = sin(angle).toFloat()
@@ -274,12 +278,9 @@ object PlanetRenderingEngine {
         if (cachedBitmap != null) {
             val iconSize = (planetRadius * 2).toInt()
             drawScope.drawImage(
-                image = cachedBitmap,
-                dstOffset = androidx.compose.ui.unit.IntOffset(
-                    (position.x - planetRadius).toInt(),
-                    (position.y - planetRadius).toInt()
-                ),
-                dstSize = androidx.compose.ui.unit.IntSize(iconSize, iconSize)
+                image = cachedBitmap, dstOffset = androidx.compose.ui.unit.IntOffset(
+                    (position.x - planetRadius).toInt(), (position.y - planetRadius).toInt()
+                ), dstSize = androidx.compose.ui.unit.IntSize(iconSize, iconSize)
             )
         } else {
             drawScope.drawCircle(
@@ -289,9 +290,7 @@ object PlanetRenderingEngine {
             )
 
             drawScope.drawCircle(
-                color = orbitalBody.orbitalConfig.color,
-                radius = planetRadius,
-                center = position
+                color = orbitalBody.orbitalConfig.color, radius = planetRadius, center = position
             )
         }
     }
