@@ -22,9 +22,16 @@ import de.rr.universelauncher.R
 fun FolderOverviewScreen(
     modifier: Modifier = Modifier,
     viewModel: FolderOverviewViewModel = hiltViewModel(),
-    onFolderSelected: (String) -> Unit
+    onFolderSelected: (String) -> Unit,
+    reloadTrigger: Int = 0
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(reloadTrigger) {
+        if (reloadTrigger > 0) {
+            viewModel.reloadFolders()
+        }
+    }
 
     Box(
         modifier = modifier.fillMaxSize()

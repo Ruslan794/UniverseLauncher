@@ -219,14 +219,21 @@ class UniverseViewModel @Inject constructor(
         }
     }
 
+    private var canvasSizeUpdateJob: Job? = null
+
     fun updateCanvasSize(canvasSize: androidx.compose.ui.geometry.Size) {
         if (canvasSize.width <= 0 || canvasSize.height <= 0) return
 
         currentCanvasSize = canvasSize
 
-        viewModelScope.launch {
+        canvasSizeUpdateJob?.cancel()
+        canvasSizeUpdateJob = viewModelScope.launch {
+            delay(100)
+
             try {
                 val currentSystem = _uiState.value.orbitalSystem
+                if (currentSystem.orbitalBodies.isEmpty()) return@launch
+
                 val updatedSystem = OrbitalDistanceCalculator.distributeOrbitsInCanvas(
                     currentSystem,
                     canvasSize

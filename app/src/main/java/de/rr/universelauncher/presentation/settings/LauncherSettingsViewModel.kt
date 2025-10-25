@@ -9,13 +9,12 @@ import de.rr.universelauncher.domain.model.AppInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,6 +26,9 @@ class LauncherSettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LauncherSettingsUiState())
     val uiState: StateFlow<LauncherSettingsUiState> = _uiState.asStateFlow()
 
+    private var cachedAllApps: List<AppInfo>? = null
+    private var loadDataJob: Job? = null
+
     fun setFolderId(folderId: String?) {
         _uiState.update { it.copy(folderId = folderId) }
         loadData()
@@ -36,16 +38,16 @@ class LauncherSettingsViewModel @Inject constructor(
         loadData()
     }
 
-
-    private var loadDataJob: Job? = null
-
     private fun loadData() {
         loadDataJob?.cancel()
         loadDataJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
-                val allApps = appRepository.getInstalledAppsWithLaunchCounts()
+                val allApps = cachedAllApps ?: appRepository.getInstalledAppsWithLaunchCounts().also {
+                    cachedAllApps = it
+                }
+
                 val currentFolderId = _uiState.value.folderId
 
                 if (currentFolderId != null) {
@@ -144,7 +146,8 @@ class LauncherSettingsViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             selectedApps = newSelected,
-                            appOrder = currentOrder
+                            appOrder = currentOrder,
+                            error = null
                         )
                     }
                 } else {
@@ -170,7 +173,8 @@ class LauncherSettingsViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             selectedApps = newSelected,
-                            appOrder = currentOrder
+                            appOrder = currentOrder,
+                            error = null
                         )
                     }
                 }
@@ -289,17 +293,6 @@ class LauncherSettingsViewModel @Inject constructor(
         }
     }
 
-    fun getSelectedAppsWithStats(): List<AppInfo> {
-        val selectedPackages = _uiState.value.selectedApps
-        return _uiState.value.allApps.filter { it.packageName in selectedPackages }
-    }
-
-    fun getTopUsedApps(): List<AppInfo> {
-        return _uiState.value.allApps
-            .sortedByDescending { it.launchCount }
-            .take(10)
-    }
-
     fun setAppOrbitSpeed(packageName: String, speed: Float) {
         viewModelScope.launch {
             try {
@@ -363,10 +356,6 @@ class LauncherSettingsViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    fun getAppOrder(): Map<String, Int> {
-        return _uiState.value.appOrder
     }
 
     override fun onCleared() {

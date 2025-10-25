@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
             UniverseLauncherTheme {
                 var showFolderOverview by remember { mutableStateOf(true) }
                 var selectedFolderId by remember { mutableStateOf<String?>(null) }
+                var reloadTrigger by remember { mutableStateOf(0) }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -51,9 +52,11 @@ class MainActivity : ComponentActivity() {
                             onBackPressed = {
                                 selectedFolderId = null
                                 showFolderOverview = true
+                                reloadTrigger++
                             },
                             onShowFolderOverview = {
                                 showFolderOverview = true
+                                reloadTrigger++
                             }
                         )
 
@@ -73,7 +76,8 @@ class MainActivity : ComponentActivity() {
                                 onFolderSelected = { folderId ->
                                     selectedFolderId = folderId
                                     showFolderOverview = false
-                                }
+                                },
+                                reloadTrigger = reloadTrigger
                             )
                         }
                     }

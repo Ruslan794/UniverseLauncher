@@ -103,10 +103,13 @@ class FolderOverviewViewModel @Inject constructor(
                 defaultFolders
             } else {
                 savedFolders.map { folderData ->
+                    val selectedApps = launcherSettingsRepository.getFolderSelectedApps(folderData.id).first()
+                    val actualAppPackages = if (selectedApps.isNotEmpty()) selectedApps else folderData.appPackageNames
+
                     Folder(
                         id = folderData.id,
                         name = folderData.name,
-                        appPackageNames = folderData.appPackageNames,
+                        appPackageNames = actualAppPackages,
                         position = getFolderPosition(folderData.id)
                     )
                 }
@@ -126,6 +129,12 @@ class FolderOverviewViewModel @Inject constructor(
                     error = e.message ?: "Failed to load folders"
                 )
             }
+        }
+    }
+
+    fun reloadFolders() {
+        viewModelScope.launch {
+            loadFolders()
         }
     }
 
